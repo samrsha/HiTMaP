@@ -1162,7 +1162,7 @@ isopattern_ppm_filter_peaklist<-function(pattern,ppm,threshold=0.001,verbose=F){
   for (i in 1:(length(pattern_ppm)-1)){
     
     pattern_ppm_delta[i]=(pattern_ppm[i+1]-pattern_ppm[i])/pattern_ppm[i]
-    
+
     if (pattern_ppm_delta[i]>(ppm/1000000)){
       filtered_pattern<-rbind(filtered_pattern,pattern[i+1,])
     } else {

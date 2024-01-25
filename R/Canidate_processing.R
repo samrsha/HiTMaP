@@ -75,10 +75,6 @@ Meta_feature_list_fun<-function(database,
       uniquemass<-unlist(masslist)
       mass_DF<-data.frame(formula=unique_formula,mass=uniquemass,stringsAsFactors = F)
       candidates<-base::merge(candidates,mass_DF,by="formula")
-      
-      
-      #candidates_mass<-candidates$formula %>% lapply(getMonomass) 
-      #candidates$mass<-as.numeric(unlist(candidates_mass))
     }
     
     candidates<-candidates[duplicated(names(candidates))==FALSE]
@@ -183,17 +179,19 @@ Protein_feature_list_fun<-function(workdir=getwd(),
                                    Decoy_adducts=c("M+He","M+Ne","M+Ar","M+Kr","M+Xe","M+Rn"),
                                    Substitute_AA=list(AA=c(NULL),AA_new_formula=c(NULL),Formula_with_water=c(NULL)),
                                    mzrange=c(500,4000),
-                                   output_candidatelist=T,
+                                   output_candidatelist=TRUE,
                                    Modifications=list(fixed=NULL,fixmod_position=NULL,variable=NULL,varmod_position=NULL),
                                    use_previous_candidates=F,
                                    Protein_desc_of_exclusion=NULL,
                                    Database_stats=F
                                    ){
+
+  # ******************************** Initial Set Up ********************************
   if (mzrange[1] == "auto-detect") {
     mzrange_proteomics_candidates_prefiltering<-c(500,4000)
     mzrange=mzrange_proteomics_candidates_prefiltering
     }
-  
+   #loads all the required libraries  
    suppressMessages(suppressWarnings(require(Biostrings)))
    suppressMessages(suppressWarnings(require(cleaver)))
    suppressMessages(suppressWarnings(require(protViz)))
@@ -205,21 +203,67 @@ Protein_feature_list_fun<-function(workdir=getwd(),
    suppressMessages(suppressWarnings(require(grid)))
    suppressMessages(suppressWarnings(require(stringr)))
    setwd(workdir)
-   
-   parse_cleavage_rule<-function(Digestion_site){
-    Cleavage_rules<-Cleavage_rules_fun()
-    found_enzyme<-Digestion_site[Digestion_site %in% names(Cleavage_rules)]
-    not_found_enzyme<-Digestion_site[!(Digestion_site %in% names(Cleavage_rules))]
-    found_rule<-not_found_enzyme[not_found_enzyme %in% (Cleavage_rules)]
-    not_found_rule<-not_found_enzyme[!(not_found_enzyme %in% (Cleavage_rules))]
-    Digestion_site_rule<-Cleavage_rules[found_enzyme] 
-    Digestion_site_final<- unique(c(Digestion_site_rule,found_rule,not_found_rule))
-     message("Found enzyme: ",paste(found_enzyme,collapse  = " "))
-     message("Found rule: \"",paste(found_rule,collapse = " "),"\"")
-     message("Found customized rule: \"",not_found_rule,"\"")
-    Digestion_site_final
+   # Getting the digestion rule for enzyme ready
+   #' parse_cleavage_rule
+   #'
+   #' this function will take the user input Digestion_site/enzyme and then extract the related digetion rule from Cleavage_rules_fun()
+   #' @param Digestion_site the user input Digestion_site/enzyme, it can be a list ["trypsin"] or a string "trypsin"
+   #'
+   #' @examples
+   #' parse_cleavage_rule("trypsin")
+   #'
+   #' @export
+   parse_cleavage_rule <- function(Digestion_site) {
+    Cleavage_rules <- Cleavage_rules_fun()
+    # Split the input into different categories
+    found_enzymes <- list()
+    custom_rules <- list()
+    unrecognized_enzymes <- list()
+  
+    for (enzyme in Digestion_site) {
+      if (enzyme %in% names(Cleavage_rules)) {
+        found_enzymes[[enzyme]] <- Cleavage_rules[[enzyme]]
+      } 
+      else if (enzyme %in% Cleavage_rules) {
+        enzyme_name <- names(Cleavage_rules[Cleavage_rules == enzyme])
+        enzyme_name <- paste(enzyme_name, collapse = ", ")
+        found_enzymes[[enzyme_name]] <- enzyme
+      }
+      else if (grepl("\\(|\\)|\\[|\\]|\\?|\\\\|\\{|\\}|\\|", enzyme)) {
+        custom_rules[[length(custom_rules) + 1]] <- enzyme
+      } 
+      else {
+        unrecognized_enzymes[[length(unrecognized_enzymes) + 1]] <- enzyme
+      }
+    }
+    
+    # Generate messages
+    if (length(found_enzymes) > 0) {
+        message("Found ", length(found_enzymes), " enzyme(s) with associated digestion rule: ")
+        for (i in seq_along(found_enzymes)) {
+            message("     ",i, ". ", names(found_enzymes[i]), ": ", found_enzymes[[i]])
+        }
+    }
+    if (length(custom_rules) > 0) {
+        message("Custom digestion rule(s) found: ")
+        for (i in seq_along(custom_rules)) {
+            message("     ", i, ". ", custom_rules[i])
+        }
+    }
+
+    if (length(unrecognized_enzymes) > 0) {
+        message("Enzyme(s) not found in pre-set dataframe: ")
+        for (i in seq_along(unrecognized_enzymes)) {
+            message("     ", i, ". ", unrecognized_enzymes[i])
+        }
+    }
+    # Construct final list of digestion sites
+    Digestion_site_final <- unique(c(unlist(found_enzymes), unlist(custom_rules)))
+    message("")
+    return(Digestion_site_final)
    }
-   Digestion_site<-Digestion_site[Digestion_site!=""]
+
+   Digestion_site<-Digestion_site[Digestion_site!=""] #drop all the empty enzyme entered by mistake
    Digestion_site<-parse_cleavage_rule(Digestion_site)
    
    if ('&'(length(Digestion_site)>=2,Multiple_mode[1]=="sequential")){
@@ -229,14 +273,9 @@ Protein_feature_list_fun<-function(workdir=getwd(),
   missedCleavages<<-missedCleavages
   Decoy_adducts=Decoy_adducts[!(Decoy_adducts %in% adducts)]
   Decoy_adducts=Decoy_adducts[1:length(adducts)]
-     
- 
-  #if (length(list_of_protein_sequence)<2000){bpworkers(BPPARAM)=3}
-  
-  #if (length(list_of_protein_sequence)<500){bpworkers(BPPARAM)=1}
 
-
-  
+  # ******************************** Protein Sequence Processing ********************************
+  # Read the raw fasta data and setting up for Peptide List Generation
   Index_of_protein_sequence <<- fasta.index(database,
                                          nrec=-1L, 
                                          skip=0L)  
@@ -248,7 +287,8 @@ Protein_feature_list_fun<-function(workdir=getwd(),
                                             skip=0L, 
                                             seek.first.rec=FALSE
                                             ) 
-  
+
+  # This never gets runn becasue Decoy mode no longer include sequence anymore cody
   if (Decoy_search && ("sequence" %in% Decoy_mode)){
     list_of_protein_sequence_rev<-Biostrings::reverse(list_of_protein_sequence)
     names(list_of_protein_sequence_rev)<-paste0("Decoy_",names(list_of_protein_sequence_rev))
@@ -257,39 +297,37 @@ Protein_feature_list_fun<-function(workdir=getwd(),
     Index_of_protein_sequence_rev$recno<-Index_of_protein_sequence_rev$recno+nrow(Index_of_protein_sequence_rev)
     Index_of_protein_sequence_rev$desc<-paste0("Decoy_", Index_of_protein_sequence_rev$desc)
     Index_of_protein_sequence<-rbind(Index_of_protein_sequence,Index_of_protein_sequence_rev)
-    }
+  }
   
-  #assign("list_of_protein_sequence", list_of_protein_sequence, envir=.GlobalEnv) 
-  
-  
+  #create the meta data for each protein in the fasta file
   names_pro<-merge(data.frame(desc=names(list_of_protein_sequence),stringsAsFactors = F),Index_of_protein_sequence,by="desc",sort=F)
-  
   names(list_of_protein_sequence) <- names_pro$recno
   Index_of_protein_sequence<<-Index_of_protein_sequence
   list_of_protein_sequence<<-list_of_protein_sequence
   
+  #check if we have a ready made protein reference database
   if(use_previous_candidates){
-    #if (dir.exists(paste(workdir,"/Summary folder",sep=""))==FALSE){dir.create(paste(workdir,"/Summary folder",sep=""))}
+    message("User would like to load ready made protein reference database, checking if we can locate the files...")
     if (sum(c("candidatelist.csv","protein_index.csv") %in% dir(paste(workdir,"/Summary folder",sep="")))==2){
-      Protein_Summary<-read.csv(paste(workdir,"/Summary folder/candidatelist.csv",sep=""),)
+      Protein_Summary<-read.csv(paste(workdir,"/Summary folder/candidatelist.csv", sep=""),) # the sep should be , not empty string, cody
       Protein_Summary$Modification[is.na(Protein_Summary$Modification)]<-""
-      Index_of_protein_sequence<<-read.csv(paste(workdir,"/Summary folder/protein_index.csv",sep=""))
-      message("Candidate list has been loaded.") 
+      Index_of_protein_sequence<<-read.csv(paste(workdir,"/Summary folder/protein_index.csv", sep=""),) # the sep should be , not empty string, cody
+      message(" ---> Candidate list has been loaded.\n") 
     }else{
-      message("Can not find the previously established candidate list.")
+      message(" ---> Can not find the previously established candidate list.\n")
       use_previous_candidates=F
       }
-    
   }
-  
+  # Peptide List Generation for each Enzyme
   if(use_previous_candidates!=T){
-  
+
   Index_of_protein_sequence$Degestion=""
   
   peplist<-list()
   peplist_range<-list()
   Index_of_protein_sequence_list<-data.frame() 
   
+  #this funciton actually never gets called cody
   parentIonMasslist<-function(peplist,Index_of_protein_sequence){
     AA<-rep(0,26)
     PIM<-NULL
@@ -297,9 +335,10 @@ Protein_feature_list_fun<-function(workdir=getwd(),
       PIM[[Index_of_protein_sequence$recno[i]]] <- parentIonMass(peplist[[Index_of_protein_sequence$recno[i]]],fixmod=AA)}
     return(PIM)
   }
-  
+
+  #  Trying to cut the given peptide using the given degestion, and generate the essential peplist and range
   for (i in 1:length(Digestion_site)){
-    message(paste("Testing fasta sequances for degestion site:",Digestion_site[i]))
+    message(paste("Testing fasta sequances for digestion site:",Digestion_site[i]))
     if (Digestion_site[i]==""){Digestion_site[i]="J"}
     peplist_range_option<-cleavageRanges(as.character(list_of_protein_sequence),custom=Digestion_site[i], missedCleavages=missedCleavages)
     peplist_option<-cleave(as.character(list_of_protein_sequence),custom=Digestion_site[i], missedCleavages=missedCleavages,unique =FALSE)
@@ -324,15 +363,7 @@ Protein_feature_list_fun<-function(workdir=getwd(),
     Index_of_protein_sequence_list<-rbind(Index_of_protein_sequence_list,Index_of_protein_sequence_option)
     
   }
-  
-  #message(paste("Peptide list generated",length(peplist),"entries in total."))
-  
-  
-  
-  
-  
-  #pimlist<-parentIonMasslist(peplist,Index_of_protein_sequence_list)
-  
+  message(" ---> Testing Done\n")
   
   AA<-c(71.037114, 0.000000, 103.009185, 115.026943, 129.042593, 147.068414, 
         57.021464, 137.058912, 113.084064, 0.000000, 128.094963, 113.084064, 
@@ -342,41 +373,33 @@ Protein_feature_list_fun<-function(workdir=getwd(),
   
   names(AA)<-LETTERS
   
-
-  #tempdf<-parLapply(cl=cl,  1: length(names(peplist)), Peptide_Summary_para,peplist)
-  #bplapply()
   message(paste("Generated",length(peplist),"Proteins in total. Computing exact masses..."))
-  #tempdf<-bplapply( 1: length((peplist)), Peptide_Summary_para,peplist,BPPARAM = BPPARAM)
-  #tempdf<-lapply( 1: length((peplist)), Peptide_Summary_para,peplist)
-  #tempdf <- do.call("rbind", tempdf)
-  #colnames(tempdf)<-c("Protein","Peptide")
-  #do.call(rbind,peplist_range)
-  start_end<-do.call(rbind,peplist_range)
-  
+  start_end<-do.call(rbind,peplist_range)# basically stacking the 3 peptide range together into one
   
   Protein.df=rep(names(peplist),unname(unlist(lapply(peplist,length))))
   Peptide.df=unname(unlist(peplist))
-  tempdf<-data.frame(Protein=Protein.df,Peptide=Peptide.df,start=start_end[,1],end=start_end[,2],stringsAsFactors = FALSE)
+  tempdf<-data.frame(Protein=Protein.df,Peptide=Peptide.df,start=start_end[,1],end=start_end[,2],stringsAsFactors = FALSE) #creating a tempdf with Protein_Number (1,2,3...), peptide sequence, start, end
   
-  #do.call()
-  
-  #
-  #list_of_protein_sequence<-get("list_of_protein_sequence", envir = .GlobalEnv)
-  
-  
+  # Data wrangling, creating a new column Modification
   tempdf$Protein<-as.character(tempdf$Protein)
   tempdf$Peptide<-as.character(tempdf$Peptide)
   tempdf<-as.data.frame(tempdf)
   tempdf$Modification=""
+  # add a new data frame called pro_end where it indicates the end range of the peptide sequence
   pro_end<-sapply(list_of_protein_sequence,length)
   pro_end<-data.frame(Protein=names(pro_end),pro_end=pro_end)
+  # merge tempdf and pro_end
   tempdf<-merge(tempdf,pro_end,by="Protein")
   if (length(grep("X",tempdf$Peptide))!=0 && !("X" %in% Substitute_AA$AA))  tempdf<-tempdf[-grep("X",tempdf$Peptide),]
   if (length(grep("U",tempdf$Peptide))!=0 && !("U" %in% Substitute_AA$AA))  tempdf<-tempdf[-grep("U",tempdf$Peptide),]
   
+  # ******************************** Calculatioin and Apply Modification ********************************
+  # calls the Peptide_modification function that will load a pre-built Unimod database (unimod.df) into global environment.
+  # but no point of doing this becaseu this will get regenrated in later processes
   mod.df_fix<-Peptide_modification(retrive_ID = Modifications$fixed,mod_position=Modifications$fixmod_position)
   mod.df_var<-Peptide_modification(retrive_ID = Modifications$variable,mod_position=Modifications$varmod_position)
   mod.df<-rbind(mod.df_fix,mod.df_var)
+
   if (is.null(mod.df)){
     min_mod_massdiff<-100
     max_mod_massdiff<-500
@@ -387,7 +410,7 @@ Protein_feature_list_fun<-function(workdir=getwd(),
   if(min_mod_massdiff>0){min_mod_massdiff=0}
   if(max_mod_massdiff<0){max_mod_massdiff=0}
   }
-  
+
   if (!is.null(Substitute_AA$AA)) {
     Substitute_AA_df<-data.frame(Substitute_AA[c("AA","AA_new_formula","Formula_with_water")],stringsAsFactors = F)
     for (AA_row in 1:nrow(Substitute_AA_df)){
@@ -400,45 +423,35 @@ Protein_feature_list_fun<-function(workdir=getwd(),
       }
      Substitute_AA$aavector[[AA_row]]<-unlist(get_atoms(Substitute_AA$AA_new_formula[AA_row])) 
     }
-    
   }
-  
-  #parentIonMass gives the M+H
-  tempdf$pepmz <- as.numeric(parentIonMass(tempdf$Peptide,fixmod=AA)- 1.007276 )
+  # calcultaing the mass for all identified peptide from the given fasta file
+  tempdf$pepmz <- as.numeric(parentIonMass(tempdf$Peptide,fixmod=AA) - 1.007276 )
+  # filtering out peptides that are not within the specified mass range.
   tempdf<-tempdf['&'(tempdf$pepmz>=mzrange[1]-max_mod_massdiff,tempdf$pepmz<=mzrange[2]+min_mod_massdiff),]
-  #tempdf1<-tempdf
+  message(" ---> Computing Done\n")
   Protein_Summary<-NULL
   adductslist<-Build_adduct_list()
   tempdf$Modification<-""
   
-  
   message(paste("Generating peptide formula..."))
   uniquepep=(tempdf$Peptide)
   uniqueAA=unique(strsplit(paste0(uniquepep,collapse = ""), "")[[1]])
-  
+
+  # Build a table of elemental compositions for amino acids
   Element_tbl<-BuildElement(Substitute_AA=Substitute_AA,uniqueAA=uniqueAA)
-  peptide_symbol=lapply(uniquepep,ConvertPeptide,Substitute_AA=Substitute_AA,Element_tbl=Element_tbl)
-  # peptide_symbol=bplapply(uniquepep,ConvertPeptide,BPPARAM = BPPARAM,Substitute_AA=Substitute_AA,Element_tbl=Element_tbl)
-  # 
-  # Element_tbl_m<-BuildElement(Substitute_AA=Substitute_AA,uniqueAA=uniqueAA,element_matrix = T)
-  # peptide_symbol=lapply(uniquepep,ConvertPeptide.2,Substitute_AA=Substitute_AA,Element_tbl=Element_tbl_m)
-  # peptide_symbol=bplapply(uniquepep,ConvertPeptide.2,BPPARAM = BPPARAM,Substitute_AA=Substitute_AA,Element_tbl=Element_tbl_m)
-  # 
-  # 
-  # system.time({peptide_symbol1=lapply(uniquepep[1:200],ConvertPeptide,Substitute_AA=Substitute_AA,Element_tbl=Element_tbl)})
-  # system.time({peptide_symbol2=lapply(uniquepep[1:200],ConvertPeptide.2,Substitute_AA=Substitute_AA,Element_tbl=Element_tbl_m)})
-  # 
-  # system.time({peptide_symbol3=bplapply(uniquepep[1:200],ConvertPeptide,BPPARAM = SerialParam(),Substitute_AA=Substitute_AA,Element_tbl=Element_tbl)})
-  # system.time({peptide_symbol4=bplapply(uniquepep[1:200],ConvertPeptide.2,BPPARAM = SerialParam(),Substitute_AA=Substitute_AA,Element_tbl=Element_tbl_m)})
-  # system.time({peptide_symbol5=lapply(uniquepep,ConvertPeptide,Substitute_AA=Substitute_AA,Element_tbl=Element_tbl)})
-  # system.time({peptide_symbol6=lapply(uniquepep,ConvertPeptide.2,Substitute_AA=Substitute_AA,Element_tbl=Element_tbl_m)})
+  # this line will give an error actually cody
+  peptide_symbol=lapply(uniquepep,ConvertPeptide,Substitute_AA=Substitute_AA,Element_tbl=Element_tbl) 
   
+  message(" ---> Checking if we need to apply modification...")
+  if (is.null(Modifications$fixed) && is.null(Modifications$variable)){
+    message("     ---> No fixed or variable modification specified\n")
+  }
+  # Fixed modification apply
   if (!is.null(Modifications$fixed)){
+    message("     ---> Applying fixed modifications...")
     mod.df<-Peptide_modification(retrive_ID = Modifications$fixed,mod_position=Modifications$fixmod_position)
     if(length(unique(mod.df$full_name))==length(Modifications$fixed)){
     message(paste("Fixed modifications:",paste0(unique(mod.df$full_name),collapse = "\n"),"found in unimod DB",sep=" ",collapse = ", "))
-    #peptide_symbol=bplapply(mod.df,convert_peptide_fixmod,peptide_symbol,BPPARAM = BPPARAM,pep_sequence=tempdf$Peptide,ConvertPeptide=ConvertPeptide)
-
 
     }else{
     message(paste("warning:",
@@ -453,11 +466,12 @@ Protein_feature_list_fun<-function(workdir=getwd(),
       mod.df.comfirm<-rbind(mod.df.comfirm,mod.df.comfirm.hidden.select)
     }
     mod.df<-mod.df.comfirm    
-    peptide_symbol_var=convert_peptide_fixmod(mod.df,peptide_symbol,peptide_info=tempdf,BPPARAM = BPPARAM)
-    message(paste("Merge modification formula done."))
+    peptide_symbol_var=convert_peptide_fixmod(mod.df,peptide_symbol,peptide_info=tempdf,BPPARAM = BPPARAM) #Contain 2 lists, List_1 contains modified atom combination for all peptide. List_2 is the [multiplier] list that got generated.
+    
     tempdf_var<-tempdf
     reserve_entry<-rep(FALSE,nrow(tempdf_var))
-    for (fixmod in mod.df$record_id){
+    #for (fixmod in mod.df$record_id){ #should access the modificaitons using index insdead of using name of each element. cody
+    for (fixmod in 1:length(mod.df$record_id)){
       mods<-ifelse(peptide_symbol_var$multiplier[[fixmod]]>=1,mod.df$code_name[mod.df$record_id==fixmod],"")
       tempdf_var$Modification<-paste(tempdf_var$Modification,mods)
       tempdf_var$pepmz <-tempdf_var$pepmz + peptide_symbol_var$multiplier[[fixmod]]*as.numeric(mod.df$mono_mass[mod.df$record_id==fixmod])
@@ -466,19 +480,21 @@ Protein_feature_list_fun<-function(workdir=getwd(),
     
     tempdf<-tempdf_var
     peptide_symbol<-peptide_symbol_var$peptide_symbol
+    message(paste(" ---> Merge fixed modification formula done."))
   }
-  
+  # Var modification apply
   if (!is.null(Modifications$variable)){
+    message("     ---> Applying variable modifications...")
+    #Calles the Peptide_modification() function from Candidate_processing.R  which prearethe modification list. If no modification specified, this will return NULL.
     mod.df<-Peptide_modification(retrive_ID = Modifications$variable,mod_position=Modifications$varmod_position)
     if(length(unique(mod.df$full_name))==length(unique(Modifications$variable))){
       message(paste("variable modifications:\n",paste0(unique(mod.df$full_name),collapse = "\n"),"found in unimod DB",sep=" ",collapse = ", "))
-      #peptide_symbol=bplapply(mod.df,convert_peptide_fixmod,peptide_symbol,BPPARAM = BPPARAM,pep_sequence=tempdf$Peptide,ConvertPeptide=ConvertPeptide)
-
     }else{
       message(paste("warning:",
                     Modifications$variable['&'((Modifications$variable %in% unique(mod.df$code_name))==F , (Modifications$variable %in% unique(mod.df$record_id) )==F)],
                     "not found in unimod DB. Please check the unimod DB again. Any Charactor string that matches code name or number that matches mod ID will be OKAY.",sep=" ",collapse = ", "))
     }
+    # select the type of modification by checking the non-hidden mod and also the hidden mod, for each hidden mod, need to check the one_letter matches and the variable name matches as well
     mod.df.comfirm<-mod.df[mod.df$hidden==0,]
     mod.df.comfirm.hidden<-mod.df[!(mod.df$full_name %in% mod.df.comfirm$full_name),]
     mod.df.comfirm.hidden_names<-mod.df$code_name[!(mod.df$full_name %in% mod.df.comfirm$full_name)]
@@ -487,75 +503,73 @@ Protein_feature_list_fun<-function(workdir=getwd(),
       mod.df.comfirm<-rbind(mod.df.comfirm,mod.df.comfirm.hidden.select)
     }
     mod.df<-mod.df.comfirm
-    peptide_symbol_var<-convert_peptide_fixmod(mod.df,peptide_symbol,peptide_info=tempdf,BPPARAM = BPPARAM)
-    message(paste("Merge modification formula done."))
+    peptide_symbol_var<-convert_peptide_fixmod(mod.df,peptide_symbol,peptide_info=tempdf,BPPARAM = BPPARAM)#contain 2 lists, peptide_symbol list  contain the updated atom composition for each peptide, multiplier list contain the occurrence of each modifier in all peptide.
     tempdf_var<-tempdf
     reserve_entry<-rep(FALSE,nrow(tempdf_var))
-    for (fixmod in mod.df$record_id){
-      mods<-ifelse(peptide_symbol_var$multiplier[[fixmod]]>=1,mod.df$code_name[mod.df$record_id==fixmod],"")
+    
+    # then for each modification, we want update the MODIFICATION column and also recalculate the mz ratio according to the modification
+    #for (fixmod in mod.df$record_id){
+    for (fixmod in 1:length(mod.df$record_id)){ #should access the modificaitons using index insdead of using name of each element. cody
+      current_mod_id = mod.df$record_id[[fixmod]]
+      mods<-ifelse(peptide_symbol_var$multiplier[[fixmod]]>=1,mod.df$code_name[mod.df$record_id==current_mod_id],"")
       tempdf_var$Modification<-paste(tempdf_var$Modification,mods)
-      tempdf_var$pepmz <-tempdf_var$pepmz + peptide_symbol_var$multiplier[[fixmod]]*as.numeric(mod.df$mono_mass[mod.df$record_id==fixmod])
-      reserve_entry<-ifelse('&'(peptide_symbol_var$multiplier[[fixmod]]>=1,reserve_entry==FALSE),TRUE,reserve_entry)
+      #tempdf_var$pepmz <-tempdf_var$pepmz + peptide_symbol_var$multiplier[[fixmod]]*as.numeric(mod.df$mono_mass[mod.df$record_id==fixmod]) # re-caculating the mass, this will give a warning message realted to unequal length of two list in operation.
+      tempdf_var$pepmz <-tempdf_var$pepmz + peptide_symbol_var$multiplier[[fixmod]]*as.numeric(mod.df$mono_mass[mod.df$record_id==current_mod_id][[1]]) # might make more sense to do this cody
+      reserve_entry<-ifelse('&'(peptide_symbol_var$multiplier[[fixmod]]>=1,reserve_entry==FALSE),TRUE,reserve_entry) #updating the reserve_entry list so all entry where it is TRUE, represents that this entry got updated with some modifications
     }
     
     peptide_symbol_var<-peptide_symbol_var$peptide_symbol
-    s1<-peptide_symbol[reserve_entry]
-    s2<-peptide_symbol_var[reserve_entry]
-    identical(peptide_symbol_var,peptide_symbol)
+    s1<-peptide_symbol[reserve_entry] #unchanged peptide symbol/atom composition
+    s2<-peptide_symbol_var[reserve_entry] #updated peptide symbol/atom composition
+    identical(peptide_symbol_var,peptide_symbol) # this could just be testing purposes? cody
+
+    # combine the updated peptdie symbol and the original peptide symbol, as well as the tempdf data (data that contains pepmz, peptide_formular, modification, etc.)
     peptide_symbol<-c(peptide_symbol,peptide_symbol_var[reserve_entry])
     tempdf<-rbind(tempdf,tempdf_var[reserve_entry,])
+    message(paste(" ---> Merge variable modification formula done."))
   }
-  
+  message(paste(" ---> Default peptide formula:",paste(adducts,collapse = " "), "generating Done\n"))
+  # ******************************** 	Modifying peptide formular and M/Z with specified adducts  ******************************** 
   message(paste("Generating peptide formula with adducts:",paste(adducts,collapse = " ")))
+  # Using convert_peptide_adduct_list function update the peptide symbol by merging the adducts’ atom compostion. The adducts’ atom composition are extracted from calling Build_adduct_list(). 
   peptides_symbol_adducts=bplapply(adducts,convert_peptide_adduct_list,peptide_symbol,BPPARAM = BPPARAM,adductslist=adductslist)
-  
+  # recalculating the peptide m/z ratio using adducts'
   for (i in 1:length(adducts)){
     adductmass <- as.numeric(as.character(adductslist[adductslist$Name == adducts[i], "Mass"]))
     charge=as.numeric(as.character(adductslist$Charge[adductslist$Name == adducts[i]]))
-    #tempdf$formula[1:1000]<-as.character(peptides_symbol_adducts[[i]])
     tempdf$formula<-peptides_symbol_adducts[[i]]
-    message(paste("Calculating peptide mz with adducts:",adducts[i]))
-    #3templist=bplapply(tempdf$formula,function(x,charge){
-    #  rcdk::get.formula(x,charge = charge)@mass
-    #  },charge,BPPARAM = BPPARAM)
+    message(paste(" ---> Calculating peptide mz with adducts:",adducts[i]))
     if (charge==0){actingcharge=1} else {actingcharge=abs(charge)}
-    #tempdf$mz<-as.numeric(unlist(templist))
     tempdf$mz<-(tempdf$pepmz+adductmass)/actingcharge
     tempdf$adduct<-adducts[i]
     tempdf$isdecoy<-rep(0,nrow(tempdf))
     tempdf$charge<-charge
-    #tempdf$isdecoy<-rep(0,nrow(tempdf))
-    #convert_peptide_adduct(tempdf$Peptide[2],adductsname = adducts[i],multiplier = c(multiplier,1),adductslist = adductslist)
-    #tempdf$formula<-bplapply(tempdf$Peptide,convert_peptide_adduct,adductsformula = adducts[i],multiplier = c(multiplier,1),BPPARAM = BPPARAM)
     Protein_Summary<-rbind.data.frame(Protein_Summary,tempdf)
   }
-  
+  message(paste(" ---> Calculation Done",adducts[i], "\n"))
+
+  # ********************************  Generating a decoy database Processing  ********************************
+  message("Generating decoy database...")
+  # *******Adducts option*******
   if (length(Decoy_adducts)>0 && Decoy_search && ("adducts" %in% Decoy_mode)){
     message(paste("Generating peptide formula with Decoy adducts:",paste(Decoy_adducts,collapse = " ")))
     peptides_symbol_adducts=bplapply(Decoy_adducts,convert_peptide_adduct_list,peptide_symbol,BPPARAM = BPPARAM,adductslist=adductslist)
   for (i in 1:length(Decoy_adducts)){
     adductmass <- as.numeric(as.character(adductslist[adductslist$Name == Decoy_adducts[i], "Mass"]))
     charge=as.numeric(as.character(adductslist$Charge[adductslist$Name==Decoy_adducts[i]]))
-    #tempdf$formula[1:1000]<-as.character(peptides_symbol_adducts[[i]])
+
     tempdf$formula<-peptides_symbol_adducts[[i]]
     message(paste("Calculating peptide mz with Decoy_adducts:",Decoy_adducts[i]))
-    #3templist=bplapply(tempdf$formula,function(x,charge){
-    #  rcdk::get.formula(x,charge = charge)@mass
-    #  },charge,BPPARAM = BPPARAM)
     if (charge==0){actingcharge=1} else {actingcharge=abs(charge)}
-    #tempdf$mz<-as.numeric(unlist(templist))
     tempdf$mz<-(tempdf$pepmz+adductmass)/actingcharge
     tempdf$adduct<-Decoy_adducts[i]
     tempdf$isdecoy<-rep(1,nrow(tempdf))
     tempdf$charge<-charge
-    #tempdf$isdecoy<-rep(0,nrow(tempdf))
-    #convert_peptide_adduct(tempdf$Peptide[2],adductsname = adducts[i],multiplier = c(multiplier,1),adductslist = adductslist)
-    #tempdf$formula<-bplapply(tempdf$Peptide,convert_peptide_adduct,adductsformula = adducts[i],multiplier = c(multiplier,1),BPPARAM = BPPARAM)
     Protein_Summary<-rbind.data.frame(Protein_Summary,tempdf)
   } 
     
   }
-  
+  #*******Element option*******
   if (Decoy_search && ("elements" %in% Decoy_mode)){
     
     message(paste("Generating peptide formula with Decoy elemental composition."))
@@ -587,16 +601,11 @@ Protein_feature_list_fun<-function(workdir=getwd(),
       
       i=i+1
     }  
-    #message(x)
     return(moleresult)
     
     },ppm,select_mol_num)
     
     names(decoymol)=as.character(target_mz)
-    
-    #saveRDS(decoymol, file = "decoymol.rds")
-    
-    #decoymol<-readRDS(file = "decoymol.rds")
     
     decoymolvec<-do.call(c,decoymol)
     
@@ -616,23 +625,18 @@ Protein_feature_list_fun<-function(workdir=getwd(),
     Protein_Summary<-rbind(Protein_Summary,decoy_tempdf)
     
   }
-  
+  message(" ---> Decoy database Done\n")
+
+  # ********************************  Exporting the Summary folder  ********************************
   Protein_Summary$Modification[is.na(Protein_Summary$Modification)]<-""
   Protein_Summary$mz<-round(Protein_Summary$mz,digits = 4)
   Protein_Summary<-Protein_Summary[`&`(Protein_Summary$mz>=mzrange[1],Protein_Summary$mz<=mzrange[2]),]
-  #Protein_Summary$Protein=Index_of_protein_sequence[Index_of_protein_sequence$desc==Protein_Summary$Protein]
-  #temp_index=Index_of_protein_sequence
-  #temp_index$Protein=temp_index$desc
-  #temp_index=temp_index[,c("Protein","recno")]
-  #Protein_Summary=merge(Protein_Summary,temp_index,by="Protein",all.x=T)
-  #Protein_Summary$Protein=Protein_Summary$recno
   if (output_candidatelist){
     if (dir.exists(paste(workdir,"/Summary folder",sep=""))==FALSE){dir.create(paste(workdir,"/Summary folder",sep=""))}
     write.csv(Protein_Summary,paste(workdir,"/Summary folder/candidatelist.csv",sep=""),row.names = F)
     write.csv(Index_of_protein_sequence,paste(workdir,"/Summary folder/protein_index.csv",sep=""),row.names = F)
-    message("Candidate list has been exported.")
+    message("Candidate list has been exporte.")
   }
-  
   
   
   }
@@ -728,7 +732,7 @@ Protein_feature_list_fun<-function(workdir=getwd(),
     dev.off()
     
   }
-  
+  #*******Isotope option*******
   if(F){if (Decoy_search && ("isotope" %in% Decoy_mode)){
     message("attaching decoy IDs in isotope mode...")
     if(is.null(Protein_Summary$isdecoy)){
@@ -736,13 +740,13 @@ Protein_feature_list_fun<-function(workdir=getwd(),
     }
     
     Protein_feature_list_decoy<-Protein_Summary[Protein_Summary$isdecoy==0,]
-    #Protein_feature_list_decoy
+
     Protein_feature_list_decoy$isdecoy=1
     Protein_Summary<-rbind(Protein_Summary[Protein_Summary$isdecoy==0,],Protein_feature_list_decoy)
     Protein_feature_list<<-Protein_Summary
     message("attaching decoy IDs in isotope mode...Done")
   }}
-  
+
   if (!is.null(Protein_desc_of_exclusion)){
     Protein_Summary<-merge(Protein_Summary,Index_of_protein_sequence[,c("recno","desc")],by.x="Protein",by.y="recno",all.x=T)
     Protein_Summary_exclusion<-NULL
@@ -756,15 +760,12 @@ Protein_feature_list_fun<-function(workdir=getwd(),
       if(is.null(num_after)) num_after=0
       num_of_interest[interest_desc]<-nrow(unique(Protein_Summary[grepl(paste0(" ",interest_desc),Protein_Summary$desc,ignore.case = T),]))+nrow(unique(Protein_Summary[grepl(paste0("-",interest_desc),Protein_Summary$desc,ignore.case = T),]))
     }
-    #Protein_feature_list_crystallin$Protein=as.character(Protein_feature_list_crystallin$desc)
     Protein_Summary=Protein_Summary[!(Protein_Summary$Protein %in% unique(Protein_Summary_exclusion$Protein)),]
     Protein_Summary$desc<-NULL
     message(paste(num_of_interest,"Protein(s) found with annotations of exclusion:",Protein_desc_of_exclusion,collapse = "\n"))     
   }
   
   Protein_feature_list<<-Protein_Summary 
-  
-
   
   return(Protein_Summary)
 }
@@ -823,6 +824,15 @@ Protein_feature_list_table_import<-function(workdir=getwd(),
   suppressMessages(suppressWarnings(require(stringr)))
   setwd(workdir)
   
+  #' parse_cleavage_rule
+  #'
+  #' this function will take the user input Digestion_site/enzyme and then extract the related digetion rule from Cleavage_rules_fun()
+  #' @param Digestion_site the user input Digestion_site/enzyme, it can be a list ["trypsin"] or a string "trypsin"
+  #'
+  #' @examples
+  #' parse_cleavage_rule("trypsin")
+  #'
+  #' @export
   parse_cleavage_rule<-function(Digestion_site){
     Cleavage_rules<-Cleavage_rules_fun()
     found_enzyme<-Digestion_site[Digestion_site %in% names(Cleavage_rules)]
@@ -847,13 +857,6 @@ Protein_feature_list_table_import<-function(workdir=getwd(),
   Decoy_adducts=Decoy_adducts[!(Decoy_adducts %in% adducts)]
   Decoy_adducts=Decoy_adducts[1:length(adducts)]
   
-  
-  #if (length(list_of_protein_sequence)<2000){bpworkers(BPPARAM)=3}
-  
-  #if (length(list_of_protein_sequence)<500){bpworkers(BPPARAM)=1}
-  
-  
-  
   Index_of_protein_sequence <<- fasta.index(database,
                                             nrec=-1L, 
                                             skip=0L)  
@@ -875,9 +878,6 @@ Protein_feature_list_table_import<-function(workdir=getwd(),
     Index_of_protein_sequence_rev$desc<-paste0("Decoy_", Index_of_protein_sequence_rev$desc)
     Index_of_protein_sequence<-rbind(Index_of_protein_sequence,Index_of_protein_sequence_rev)
   }
-  
-  #assign("list_of_protein_sequence", list_of_protein_sequence, envir=.GlobalEnv) 
-  
   
   names_pro<-merge(data.frame(desc=names(list_of_protein_sequence),stringsAsFactors = F),Index_of_protein_sequence,by="desc",sort=F)
   
@@ -942,15 +942,6 @@ Protein_feature_list_table_import<-function(workdir=getwd(),
       
     }
     
-    #message(paste("Peptide list generated",length(peplist),"entries in total."))
-    
-    
-    
-    
-    
-    #pimlist<-parentIonMasslist(peplist,Index_of_protein_sequence_list)
-    
-    
     AA<-c(71.037114, 0.000000, 103.009185, 115.026943, 129.042593, 147.068414, 
           57.021464, 137.058912, 113.084064, 0.000000, 128.094963, 113.084064, 
           131.040485, 114.042927, 0.000000, 97.052764, 128.058578, 156.101111, 
@@ -974,12 +965,6 @@ Protein_feature_list_table_import<-function(workdir=getwd(),
     Protein.df=rep(names(peplist),unname(unlist(lapply(peplist,length))))
     Peptide.df=unname(unlist(peplist))
     tempdf<-data.frame(Protein=Protein.df,Peptide=Peptide.df,start=start_end[,1],end=start_end[,2],stringsAsFactors = FALSE)
-    
-    #do.call()
-    
-    #
-    #list_of_protein_sequence<-get("list_of_protein_sequence", envir = .GlobalEnv)
-    
     
     tempdf$Protein<-as.character(tempdf$Protein)
     tempdf$Peptide<-as.character(tempdf$Peptide)
@@ -1591,11 +1576,11 @@ convert_peptide_fixmod<-function(mod.df,peptide_symbol,peptide_info,BPPARAM=BPPA
    suppressMessages(suppressWarnings(require(stats)))
   
    pep_sequence=peptide_info$Peptide
-   peptide_seqinfo=peptide_info[,c("start","end")]
+   peptide_seqinfo=peptide_info[,c("start","end")] # don't think this ever gets used
 
   merge_atoms<-function(atoms,addelements,check_merge=T,mode=c("add","ded"),multiplier=c(1,1)){
     
-    atomsorg=atoms
+    atomsorg=atoms #don't think this is meaningful cody
     
     if (missing(mode)) mode="add"
     
@@ -1607,8 +1592,10 @@ convert_peptide_fixmod<-function(mod.df,peptide_symbol,peptide_info,BPPARAM=BPPA
     
     for (x in names(addelements)){
       if (is.null(atoms[[x]])){
+        # if this peptide's atom combination do not contain the modifier's atom, then simply add it
         atoms[[x]]=addelements[[x]]
       }else {
+        # if it already contains that atom then 
         atoms[[x]]=(atoms[[x]]*multiplier[1]) + (addelements[[x]]*multiplier[2])
       } 
     }
@@ -1646,89 +1633,58 @@ convert_peptide_fixmod<-function(mod.df,peptide_symbol,peptide_info,BPPARAM=BPPA
     }else{return(NULL)}
   }
   
-  #if (missing(multiplier)){
-  #  multiplier[1]= as.numeric(as.character(adductslist[adductslist$Name==adductsname,"Mult"]))
-  #  multiplier[2]=1
-  #}
-  
+  #splits the mod.df data frame into a list of smaller data frames (mod.df.list), where each smaller data frame contains only one row from the original mod.df.
   mod.df.list <- split(mod.df, seq(nrow(mod.df)))
   multiplier_for_mod<-function(x,pep_sequence,peptide_info,BPPARAM=bpparam()){
     if(x$position_key==2){
-      #multiplier_pep<-lapply(pep_sequence,grepl,x$one_letter)
+      # each entries of multiplier_pep represent the count number of occurence for x$one_letter in each peptide
       multiplier_pep<-str_locate_all(pep_sequence,x$one_letter)
       multiplier_pep<-sapply(multiplier_pep,nrow)
       return(multiplier_pep)
     } else if(x$position_key %in% c(3,4)){
+      # all entries are 1
       multiplier_pep=rep(1,length(pep_sequence))
       return(multiplier_pep)
     } else if(x$position_key %in% c(5)){
+      #only the peptide that is the start of protein is 1
       message("Protein N-term modification selected")
-      #list_of_protein_sequence<-get("list_of_protein_sequence", envir = .GlobalEnv)
-      
-      #multiplier_pep=rep(0,length(pep_sequence))
-      #map_res<-sapply(list_of_protein_sequence,str_locate_all,pep_sequence)
-      #map_res_found<-bplapply(1:length(pep_sequence),function(x,map_res){
-      #  map_resdf<-(do.call(rbind,map_res[x,]))
-      #  if (1 %in% map_resdf[,"start"]){
-      #    if (sum(map_resdf[,"start"]!=1)>0){
-      #      return(c(1,1))
-      #    }else{return(c(1,0))}
-      #  }else{return(c(0,0))}
-      #},map_res,BPPARAM=BPPARAM)
-      #map_res_found<-do.call(rbind,map_res_found)
-      #multiplier_pep<-map_res_found[,1]
       multiplier_pep<-ifelse(peptide_info[,"start"]==1,1,0)
       return(multiplier_pep)
     } else if(x$position_key %in% c(6)){
+      #only the peptide that is the end of protein is 1
       message("Protein C-term modification selected")
       multiplier_pep=rep(0,length(pep_sequence))
-      #map_res<-sapply(list_of_protein_sequence,str_locate_all,pep_sequence)
-      #map_res<-bplapply(list_of_protein_sequence,str_locate_all,pep_sequence)
-      
       multiplier_pep<-ifelse(peptide_info$end==peptide_info$pro_end,1,0)
-      #map_res_found<-bplapply(1:length(pep_sequence),function(x,map_res,pro_end){
-      #  map_resdf<-do.call(rbind,map_res[x,])
-      #  pro_label<-rep(pro_end,sapply(map_res[x,],nrow))
-      #  map_resdf[,"end"]==pro_label
-      #  if (sum(map_resdf[,"end"]==pro_label)>=1){
-      #    if (sum(map_resdf[,"end"]!=pro_label)>0){
-      #      return(c(1,1))
-      #    }else{return(c(1,0))}
-      #  }else{return(c(0,0))}
-      #},map_res,pro_end,BPPARAM = BPPARAM)
-      #map_res_found<-do.call(rbind,map_res_found)
-      #multiplier_pep<-map_res_found[,1]
       return(multiplier_pep)
     }
-    
   }
-  
-  formula_mod<-lapply(mod.df$composition,get_atoms_mod)
-  
+  #gets the atoms combination(counts) for each modification
+  formula_mod<-lapply(mod.df$composition,get_atoms_mod) # lists of all confirmed modifier, each element represent the atom combination for each modifier
   names(formula_mod)<-mod.df$record_id
-  
-  multiplier<-lapply(mod.df.list,multiplier_for_mod,pep_sequence=pep_sequence,peptide_info=peptide_info,BPPARAM=BPPARAM)
-  
+
+  #gets the number of modification places across all peptide for each modification
+  multiplier<-lapply(mod.df.list,multiplier_for_mod,pep_sequence=pep_sequence,peptide_info=peptide_info,BPPARAM=BPPARAM) # lists of all confirmed modifier, each element represent the occurrence of the modifier for each peptide
   names(multiplier)<-as.character(mod.df$record_id)
-  #formula<-ConvertPeptide(peptide)
-  for (fixmod in mod.df$record_id){
-    #for (formula in 1:length(peptide_symbol)){
-    #peptide_symbol[[formula]]<-merge_atoms(peptide_symbol[[formula]],formula_mod[[fixmod]],check_merge = F,mode = "add", multiplier = c(1,multiplier[[fixmod]][formula]))
-    #}
-    #message(formula_mod[[as.character(fixmod)]])
-    #message(multiplier[[as.character(fixmod)]])
-    peptide_symbol[which(multiplier[[as.character(fixmod)]]>=1)]
-    peptide_symbol[which(multiplier[[as.character(fixmod)]]>=1)]<-bplapply(1:length(peptide_symbol[which(multiplier[[as.character(fixmod)]]>=1)]),function(x,symbol,addelements,merge_atoms,multiplier_list){
+
+  #for each user specified modifier
+  for (fixmod in 1:length(mod.df$record_id)){ # should also use index to access the modification type, not using name. Cody
+    peptide_symbol[which(multiplier[[fixmod]]>=1)]#not sure this will do anything meaningfully cody
+
+    #for each peptide that contains the target modifier, change the atom combination of that peptide according to the number of occurence of that modifier in the peptide
+    peptide_symbol[which(multiplier[[fixmod]]>=1)]<-bplapply(1:length(peptide_symbol[which(multiplier[[fixmod]]>=1)]),function(x,symbol,addelements,merge_atoms,multiplier_list){
+      # symbol is the atom combinations for all the peptide where each peptide contains the modifier
+      # addelements is the current modifier's atom combination
+      # multiplier_list is current multiplier but dropped all the 0 entries
+
+      
       if (multiplier_list[x]!=0){
         return(merge_atoms(atoms = symbol[[x]],addelements = addelements,check_merge=F,mode="add",multiplier=c(1,multiplier_list[x])))
       }else{
-        return(symbol[[x]])
+        return(symbol[[x]])#don't think this will get exectued because multiplier_list is a list of all non-zero entries, so multiplier_list[x]!=0 alwasy true
         }
-      },symbol=peptide_symbol[which(multiplier[[as.character(fixmod)]]>=1)],merge_atoms=merge_atoms,addelements=formula_mod[[as.character(fixmod)]], multiplier_list = multiplier[[as.character(fixmod)]][which(multiplier[[as.character(fixmod)]]>=1)],BPPARAM = BPPARAM)
+      },symbol=peptide_symbol[which(multiplier[[fixmod]]>=1)],merge_atoms=merge_atoms,addelements=formula_mod[[fixmod]], multiplier_list = multiplier[[fixmod]][which(multiplier[[fixmod]]>=1)],BPPARAM = BPPARAM)
   }
-  
   return(list(peptide_symbol=peptide_symbol,multiplier=multiplier))
-  
 }
 
 convert_peptide_adduct_list<-function(adductsname,peptide_symbol,multiplier=c(1,1),adductslist=Build_adduct_list()){
@@ -1796,7 +1752,7 @@ convert_peptide_adduct_list<-function(adductsname,peptide_symbol,multiplier=c(1,
   
   adductsformula_add<-get_atoms(adductsformula_add)
   adductsformula_ded<-get_atoms(adductsformula_ded)
-  
+  # stays the same when adductsformula_ded is NULL, so it is like combining adductsformula_add and adductsformula_ded together into one formula of change
   adductsformula<-merge_atoms(adductsformula_add,adductsformula_ded,check_merge = F,mode = "ded")
   peptide_formula<-as.character()
   #formula<-ConvertPeptide(peptide)
@@ -2228,6 +2184,7 @@ Peptide_Summary_para<- function(Proteins,peplist){
 Peptide_modification<-function(retrive_ID=NULL,mod_position=NULL,update_unimod=F){
    suppressMessages(suppressWarnings(require(protViz)))
    suppressMessages(suppressWarnings(require(XML)))
+  # if update_unimod is set to TRUE, the function updates the Unimod database and parse into a list
   if(update_unimod){
   message("Updating unimod database...")
   unimodurl <- url("http://www.unimod.org/xml/unimod_tables.xml")
@@ -2237,47 +2194,46 @@ Peptide_modification<-function(retrive_ID=NULL,mod_position=NULL,update_unimod=F
     save(unimod.list,file =paste0(path.package("HiTMaP"), "/data/unimod.list.rda"))
   
   } 
-   
-  if(!exists("unimod.df",envir = globalenv())){
-      #try(data("unimod.list",package = "HiTMaP"))
-  
-  
+  # checks if unimod.df already exists in the global environment. 
+  if(!exists("unimod.df",envir = globalenv())){  
+    #If it does not exist, then create it
+    data("unimod.list",package = "HiTMaP")
     
-  data("unimod.list",package = "HiTMaP")
-  
-  unimod.df<-lapply(unimod.list, function(x){
-    x<-unname(x)
-    x<-data.frame(do.call('rbind', lapply(x, function(y) y[match(names(x[[1]]), names(y))])),stringsAsFactors = F)
-    if (".attrs" %in% colnames(x)) {
-      attrs_tb<-data.frame(do.call('rbind', lapply(x$.attrs, function(y) y[match(names(x$.attrs[[1]]), names(y))])),stringsAsFactors = F)
-      x<-cbind(x,attrs_tb)}
-    return(x)
-    })
-  
-  unimod.df <<-unimod.df
-  
+    unimod.df<-lapply(unimod.list, function(x){
+      x<-unname(x)
+      x<-data.frame(do.call('rbind', lapply(x, function(y) y[match(names(x[[1]]), names(y))])),stringsAsFactors = F)
+      if (".attrs" %in% colnames(x)) {
+        attrs_tb<-data.frame(do.call('rbind', lapply(x$.attrs, function(y) y[match(names(x$.attrs[[1]]), names(y))])),stringsAsFactors = F)
+        x<-cbind(x,attrs_tb)}
+      return(x)
+      })
+    
+    unimod.df <<-unimod.df
   }else{
-    
+    #If it does exist, then extract it from the global enviroment
     unimod.df <- get("unimod.df",envir = globalenv())
-    
   }
-  if (missing(mod_position)) mod_position=(rep("Any",length(retrive_ID)))
+  if (missing(mod_position)) mod_position=(rep("Any",length(retrive_ID))) #checks if the user input: mod_position has correctly identified
+  
+  # Check if there is retrive_ID given, if so, it will generate the modification df
   if (!is.null(retrive_ID)){
     retrive_mod<-data.frame(retrive_ID,mod_position,stringsAsFactors = F)
+
+    # Position of the modification processing
     unimod.modification.df<-merge(unimod.df$modifications,unimod.df$specificity,by.x=c("record_id"),by.y=c("mod_key"),all.x=T)
-    #unimod.modification.df=unimod.modification.df[unimod.modification.df$hidden==0,]
     unimod.df$positions_new<-unimod.df$positions
     unimod.df$positions_new$position_ext<-str_replace(unimod.df$positions_new$position,"Anywhere|Any N-term|Any C-term","Peptide")
     unimod.df$positions_new$position_ext<-str_replace(unimod.df$positions_new$position_ext,"Protein N-term|Protein C-term","Protein")
-    
     unimod.modification.df<-merge(unimod.modification.df,unimod.df$positions_new,by.x="position_key",by.y="record_id")
+
     return_mod.df<-suppressWarnings(lapply(1:nrow(retrive_mod),function(x,retrive_mod,unimod.modification.df){
     if (is.na(as.numeric(retrive_mod$retrive_ID[x]))){
-      if (retrive_mod$mod_position[x]=="Any"){ pos_id_var=1:6}else{pos_id_var=retrive_mod$mod_position[x]}
+      if (retrive_mod$mod_position[x]=="Any"){ pos_id_var=1:6}else{pos_id_var=retrive_mod$mod_position[x]} # gets the pos_id_var which stands for the position id for this modificaiton
       
       unimod.modification.df['&'(str_detect(unimod.modification.df$code_name,regex(paste0("^",as.character(retrive_mod$retrive_ID[x]),"$"),ignore_case = T)),as.numeric(unimod.modification.df$position_key) %in% as.numeric(pos_id_var)),]
     
-      }else{
+      }
+    else{
       unimod.modification.df[`&`(unimod.modification.df$record_id==as.character(retrive_mod$retrive_ID[x]),unimod.modification.df$position_key %in% as.numeric(pos_id_var)),]
     
       }
@@ -2285,9 +2241,6 @@ Peptide_modification<-function(retrive_ID=NULL,mod_position=NULL,update_unimod=F
     },retrive_mod,unimod.modification.df))
     
     return_mod.df=do.call(rbind,return_mod.df)
-    
-    #return_mod.df=merge(return_mod.df,unimod.df$specificity,by.x="record_id",by.y="mod_key",all.x=T)
-    #return_mod.df=return_mod.df[return_mod.df$hidden==0,]
     return(return_mod.df)
   }
 

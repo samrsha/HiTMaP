@@ -83,13 +83,13 @@ imaging_Spatial_Quant<-function(
                                            ProtGenerics,S4Vectors,stats4,EBImage,
                                            BiocParallel,BiocGenerics,parallel,stats,graphics,grDevices,utils,datasets,methods)))
 
-  datafile<-gsub(".imzML", "", datafile)
-  workdir<-base::dirname(datafile[1])
+  datafile<-gsub(".imzML", "", datafile) # Get the image file name, e.g. /data/bolvin.imzML --> /data/bolvin
+  workdir<-base::dirname(datafile[1]) # e.g. /data/bolvin --> /data
   setwd(workdir)
-  closeAllConnections()
-  parallel=try(detectCores()/2)
+  closeAllConnections() #close all non-standard connections, not 100% sure why this is necessary
+  parallel=try(detectCores()/2) # detecting how many CPU this host (e.g. your laptop) and will use half of it for running
   if (parallel<1 | is.null(parallel)){parallel=1}
-  BPPARAM=bpparam()
+  BPPARAM=bpparam() # setting up biocParallel to run tasks simultaneously
   BiocParallel::bpworkers(BPPARAM)=parallel
   bpprogressbar(BPPARAM)=TRUE
 
@@ -145,7 +145,6 @@ imaging_Spatial_Quant<-function(
       #Meta_feature_list$Intensity<-unlist(parLapply(cl=autoStopCluster(makeCluster(parallel)),Meta_feature_list$mz,intensity_sum_para,uniques_intensity))
       Meta_feature_list$Intensity<-unlist(bplapply(Meta_feature_list$mz,intensity_sum_para,uniques_intensity,BPPARAM=BPPARAM))
       write.csv(Meta_feature_list[Meta_feature_list$Intensity>0,],"Cluster.csv",row.names = F)
-
     }
   }
   #Summarize the peptide list across the datafiles
@@ -1296,7 +1295,6 @@ Preprocessing_segmentation<-function(datafile,
       datafile_imzML[z]<-paste0(datafile[z],".imzML")
     }
     setwd(workdir[z])
-    
     if(import_ppm==0)
       if (ppm>=25) {
         instrument_ppm=50
@@ -1316,7 +1314,7 @@ Preprocessing_segmentation<-function(datafile,
     if (dir.exists(paste0(gsub(".imzML$","",datafile[z]) ," ID"))==FALSE){
       dir.create(paste0(gsub(".imzML$","",datafile[z])  ," ID"))
     }
-    
+
     message("Loading raw image data for statistical analysis: ",paste0(gsub(".imzML$","",datafile[z]), ".imzML"))
     if(mzrange[1]=="auto-detect"){
       imdata <- Cardinal::readMSIData(datafile_imzML[z],  attach.only=F,as="MSImagingExperiment",resolution=import_ppm, units="ppm",BPPARAM=SerialParam())

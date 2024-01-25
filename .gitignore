@@ -1,0 +1,3 @@
+.snakemake/
+/workflow/data/
+.DS_Store
