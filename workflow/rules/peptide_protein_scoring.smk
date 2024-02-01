@@ -33,5 +33,7 @@ rule peptide_protein_scoring:
         Protein_feature_summary = config['Protein_feature_summary'],
         Peptide_feature_summary = config['Peptide_feature_summary'],
         Region_feature_summary = config['Region_feature_summary']
+    conda:
+        "../env/conda_env.yaml"
     script:
         '../scripts/peptide_protein_scoring.R'

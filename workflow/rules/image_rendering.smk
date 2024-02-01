@@ -34,6 +34,22 @@ rule image_rendering:
         Plot_score_IQR_cutoff = config['Plot_score_IQR_cutoff'],
         mzAlign_runs = config['mzAlign_runs'],
         deconv_peaklist = config['deconv_peaklist'],
-        plot_unique_component = config['plot_unique_component']
+        plot_unique_component = config['plot_unique_component'],
+        peptide_ID_filter = config['peptide_ID_filter'],
+
+        ClusterID_colname = config['ClusterID_colname'],
+        componentID_colname = config['componentID_colname'],
+        plot_layout = config['plot_layout'],
+        export_Header_table = config['export_Header_table'],
+        export_footer_table = config['export_footer_table'],
+        attach_summary_cluster = config['attach_summary_cluster'],
+        smooth_image = config['smooth_image'],
+        Component_plot_coloure = config['Component_plot_coloure'],
+        cluster_color_scale = config['cluster_color_scale'],
+        img_brightness = config['img_brightness'],
+        pixel_size_um = config['pixel_size_um'],
+        Fastadatabase = config['Fastadatabase'],
+    conda:
+        "../env/conda_env.yaml"    
     script:
         '../scripts/image_rendering.R'

@@ -425,7 +425,8 @@ Protein_feature_list_fun<-function(workdir=getwd(),
     }
   }
   # calcultaing the mass for all identified peptide from the given fasta file
-  tempdf$pepmz <- as.numeric(parentIonMass(tempdf$Peptide,fixmod=AA) - 1.007276 )
+  tempdf$pepmz <- as.numeric(parentIonMass(tempdf$Peptide,fixmod=AA) - 1.007276)
+
   # filtering out peptides that are not within the specified mass range.
   tempdf<-tempdf['&'(tempdf$pepmz>=mzrange[1]-max_mod_massdiff,tempdf$pepmz<=mzrange[2]+min_mod_massdiff),]
   message(" ---> Computing Done\n")
@@ -2186,13 +2187,13 @@ Peptide_modification<-function(retrive_ID=NULL,mod_position=NULL,update_unimod=F
    suppressMessages(suppressWarnings(require(XML)))
   # if update_unimod is set to TRUE, the function updates the Unimod database and parse into a list
   if(update_unimod){
-  message("Updating unimod database...")
-  unimodurl <- url("http://www.unimod.org/xml/unimod_tables.xml")
-  unimod.list <- XML::xmlToList(
-    XML::xmlParse(
-      scan(unimodurl, what = character())))
-    save(unimod.list,file =paste0(path.package("HiTMaP"), "/data/unimod.list.rda"))
-  
+    message("Updating unimod database...")
+    unimodurl <- url("http://www.unimod.org/xml/unimod_tables.xml")
+    unimod.list <- XML::xmlToList(
+      XML::xmlParse(
+        scan(unimodurl, what = character())))
+      save(unimod.list,file =paste0(path.package("HiTMaP"), "/data/unimod.list.rda"))
+
   } 
   # checks if unimod.df already exists in the global environment. 
   if(!exists("unimod.df",envir = globalenv())){  

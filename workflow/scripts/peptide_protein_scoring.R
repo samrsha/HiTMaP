@@ -1,5 +1,8 @@
-# ------------------------------ Sourcing funcitons from other R script ------------------------------
 source("scripts/loading_packages.R")
+loading_all_packages()
+
+# ------------------------------ Sourcing funcitons from other R script ------------------------------
+
 source("../R/Utilities_Cluster_image.R")
 source("../R/Utilities_IMS_processing.R")
 source("../R/Utilities_proteomics_annotation.R") #Do_PMF_search()
@@ -38,7 +41,6 @@ Region_feature_summary = snakemake@params[['Region_feature_summary']]
 PMFsearch=IMS_analysis
 
 # ------------------------------ Package Loading + Setting working directory ------------------------------
-loading_all_packages()
 
 if (is.null(projectfolder)){
     workdir<-base::dirname(datafile[1])

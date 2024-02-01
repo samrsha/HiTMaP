@@ -1,13 +1,10 @@
-# ------------------------------ Package Loading ------------------------------
-source("scripts/loading_packages.R")
-loading_all_packages()
-message("All pacakge loaded...")
-
 # ------------------------------ Sourcing funcitons from other R script ------------------------------
-# source("scripts/loading_packages.R")
+source("scripts/Loading_packages.R")
 source("../R/Canidate_processing.R")
 source("../R/Utilities_Cluster_image.R")
-# source("../R/Utilities_general.R") #Parallel.OS
+
+# ------------------------------ Package Loading ------------------------------
+loading_all_packages()
 
 # ------------------------------ Setting parameter ------------------------------
 datafile = snakemake@params[['datafile']]
@@ -25,7 +22,7 @@ use_previous_candidates = snakemake@params[['use_previous_candidates']]
 missedCleavages = snakemake@params[['missedCleavages']]
 Substitute_AA = snakemake@params[['Substitute_AA']]
 Modifications = snakemake@params[['Modifications']]
-projectfolder = snakemake@params[['projectfolder']]
+projectfolder<-NULL
 
 # ------------------------------ Setting up the workign directory ------------------------------
 if (missing(datafile)) stop("Missing data file, Choose single or multiple imzml file(s) for analysis")
@@ -37,6 +34,7 @@ if (is.null(projectfolder)){
 datafile <- basename(datafile)
 datafile <- gsub(".imzML$", "", datafile) # Get the image file name, e.g. /data/bolvin.imzML --> /data/bolvin
 datafile_imzML <- paste0(datafile,".imzML")
+
 setwd("data/") # this is a bit hardcoding cody
 
 # ------------------------------ Setting up Biocparallel param ------------------------------
@@ -44,7 +42,7 @@ if (is.null(Thread)){
   # setting up number of thread/worker if Thread is not given
   parallel=try(detectCores()/2) # detecting how many CPU this host (e.g. your laptop) and will use half of it for running
   if (parallel<1 | is.null(parallel)){parallel=1}
-  BPPARAM=HiTMaP:::Parallel.OS(parallel) 
+  BPPARAM=HiTMaP:::Parallel.OS(parallel)
   setCardinalBPPARAM(BPPARAM = BPPARAM)
 }else{
   # if Thread is given, then will use the given Thread for BiocParallel running
@@ -61,8 +59,7 @@ message("File Selection Finshed: ")
 message(paste("    -", length(datafile), "imzML files were selected and will be used for Searching."))
 message(paste("    -", Fastadatabase, "was selected as database.", "Candidates will be generated through",mode[1] ,"mode\n"))
 
-Protein_feature_list <- Protein_feature_list_fun(
-                                                 database=Fastadatabase,
+Protein_feature_list <- Protein_feature_list_fun(database=Fastadatabase,
                                                  Digestion_site=Digestion_site,
                                                  missedCleavages=missedCleavages,
                                                  adducts=adducts,
@@ -75,11 +72,12 @@ Protein_feature_list <- Protein_feature_list_fun(
                                                  Modifications=Modifications,
                                                  mzrange=mzrange)
 
-message("
-                  _______
-                 /      /,
-                /      //
-               /______//
-              (______(/
-< Reference database generation completed! >
-")
+
+# delete this when finish this part of snakemake
+testing <- data.frame(
+  ID = 1:5,
+  Name = c("Alice", "Bob", "Charlie", "David", "Eva"),
+  Age = c(19, 30, 55, 75, 24),
+  stringsAsFactors = FALSE
+)
+write.csv(testing, file = "lala.csv", row.names = FALSE)

@@ -1,3 +1,4 @@
+message("Image rendering starts now ...")
 # ------------------------------ Sourcing funcitons from other R script ------------------------------
 source("scripts/loading_packages.R")
 source("../R/Utilities_Cluster_image.R")
@@ -23,16 +24,32 @@ mzAlign_runs = snakemake@params[['mzAlign_runs']]
 deconv_peaklist = snakemake@params[['deconv_peaklist']]
 plot_unique_component = snakemake@params[['plot_unique_component']]
 
+
+ClusterID_colname = snakemake@params[['ClusterID_colname']]
+componentID_colname = snakemake@params[['componentID_colname']]
+plot_layout = snakemake@params[['plot_layout']]
+export_Header_table = snakemake@params[['export_Header_table']]
+export_footer_table = snakemake@params[['export_footer_table']]
+attach_summary_cluster = snakemake@params[['attach_summary_cluster']]
+smooth.image = snakemake@params[['smooth_image']]
+Component_plot_coloure = snakemake@params[['Component_plot_coloure']]
+cluster_color_scale = snakemake@params[['cluster_color_scale']]
+img_brightness = snakemake@params[['img_brightness']]
+pixel_size_um = snakemake@params[['pixel_size_um']]
+database = snakemake@params[['Fastadatabase']]
+peptide_ID_filter = snakemake@params[['peptide_ID_filter']]
+remove_cluster_from_grid = attach_summary_cluster
+
 # ------------------------------ Package Loading + Setting working directory ------------------------------
 loading_all_packages()
 
 if (is.null(projectfolder)){
     workdir<-base::dirname(datafile[1])
+    workdir <- paste(getwd(), "/data", sep = "")
 }else{ workdir<-projectfolder }
 datafile <- basename(datafile)
 datafile <- gsub(".imzML$", "", datafile) # Get the image file name, e.g. /data/bolvin.imzML --> /data/bolvin
 datafile_imzML <- paste0(datafile,".imzML")
-setwd("data/") # this is a bit hardcoding cody
 
 # ------------------------------ Setting up Biocparallel param ------------------------------
 if (is.null(Thread)){
@@ -49,15 +66,18 @@ if (is.null(Thread)){
 }
 
 
-
 # ------------------------------ Protein cluster image rendering ------------------------------
   
 if(plot_cluster_image_grid){
-    
-    message("cluster image rendering...")
-    
+    message(" ---> Cluster image rendering...")
     setwd(workdir[1])
     
+    list_of_protein_sequence <- readAAStringSet(database,
+                                            format="fasta",
+                                            nrec=-1L, 
+                                            skip=0L, 
+                                            seek.first.rec=FALSE
+                                            )
     # read protein-peptide features result
     
     Protein_feature_list=read.csv(file=paste(workdir[1],"/Summary folder/Protein_peptide_Summary.csv",sep=""),stringsAsFactors = F)
@@ -87,27 +107,27 @@ if(plot_cluster_image_grid){
     }
 
     Protein_feature_list=as.data.frame(Protein_feature_list)
-    
+
     # generate combined IMS data for multiple files or use a link to load the pre-processed IMS data
-    
+
     if (!is.null(cluster_rds_path)){
-    
+
         cluster_rds_path
         imdata=readRDS(paste0(workdir[1],"/",cluster_rds_path))
-        message("cluster imdata loaded.")
+        message("Cluster imdata loaded.")
     
     }else{
-      
+
         cluster_rds_path<-Load_IMS_decov_combine(datafile=datafile,workdir=workdir,import_ppm=ppm,SPECTRUM_batch="overall",mzAlign_runs=mzAlign_runs,
                                         ppm=ppm,threshold=0,rotate=Rotate_IMG,mzrange=mzrange,
                                         deconv_peaklist=deconv_peaklist,preprocessRDS_rotated=T,target_mzlist=sort(unique(as.numeric(Protein_feature_list$mz)),decreasing = F))
 
 
         imdata=readRDS(paste0(workdir[1],"/",basename(cluster_rds_path)))
-        
-        message("cluster imdata generated and loaded.")
+
+        message("Cluster imdata generated and loaded.")
     }
-    
+
     # test combined imdata
     if (class(imdata)[1]=="matrix"){
       
@@ -116,7 +136,7 @@ if(plot_cluster_image_grid){
       saveRDS(imdata,paste0(workdir[1],"/combinedimdata.rds"),compress = T)
       
     }
-    
+    print("cody2")
     # Setup output folder and queue the R calls for cluster image randering
     outputfolder=paste(workdir,"/Summary folder/cluster Ion images/",sep="")
     if (dir.exists(outputfolder)==FALSE){dir.create(outputfolder)}
@@ -126,7 +146,6 @@ if(plot_cluster_image_grid){
         Protein_feature_list_trimmed<-Protein_feature_list
     }
 
-
     if (plot_unique_component){
         outputfolder=paste(workdir,"/Summary folder/cluster Ion images/unique/",sep="")
 
@@ -135,10 +154,10 @@ if(plot_cluster_image_grid){
         Protein_feature_list_unique=Protein_feature_list %>% group_by(mz) %>% dplyr::summarise(num=length(unique(Protein)))
         Protein_feature_list_unique_mz<-Protein_feature_list_unique$mz[Protein_feature_list_unique$num==1]
         Protein_feature_list_trimmed<-Protein_feature_list[Protein_feature_list$mz %in% Protein_feature_list_unique_mz, ]
-        
-        write.csv(Protein_feature_list_trimmed,paste(workdir,"/Summary folder/Protein_feature_list_trimmed.csv",sep=""),row.names = F)
+        #write.csv(Protein_feature_list_trimmed,paste("../../../Summary folder/Protein_feature_list_trimmed.csv",sep=""),row.names = F) #hard coding 
+        write.csv(Protein_feature_list_trimmed,paste(workdir, "/Summary folder/Protein_feature_list_trimmed.csv",sep=""),row.names = F)
     }
-    
+
     save(list=c("Protein_feature_list_trimmed",
                 "imdata",
                 "ClusterID_colname",
@@ -159,11 +178,15 @@ if(plot_cluster_image_grid){
                 "pixel_size_um"
                 ),
          file=paste0(workdir,"/cluster_img_grid.RData"))
-
+    print(colnames(Protein_feature_list_trimmed))
     for (clusterID in unique(Protein_feature_list_trimmed$Protein)){
         cluster_desc<-unique(Protein_feature_list_trimmed$desc[Protein_feature_list_trimmed[[ClusterID_colname]]==clusterID])
         cluster_desc<-gsub(stringr::str_extract(cluster_desc,"OS=.{1,}"),"",cluster_desc)
+        print(ClusterID_colname)
+        print(Protein_feature_list_trimmed[[ClusterID_colname]]) #nihao
+
         n_component<-nrow(unique(Protein_feature_list_trimmed[Protein_feature_list_trimmed[[ClusterID_colname]]==clusterID,c(ClusterID_colname,componentID_colname,"moleculeNames","adduct","Modification")]))
+        print("cody1")
         if (n_component>=peptide_ID_filter){
             if ('&'(file.exists(paste0(outputfolder,clusterID,"_cluster_imaging.png")),!plot_cluster_image_overwrite)){
                 message("Cluster image rendering Skipped file exists: No.",clusterID," ",cluster_desc)
@@ -223,6 +246,8 @@ if(plot_cluster_image_grid){
         }
       }
 }
+
+
 
 message("
       ( (

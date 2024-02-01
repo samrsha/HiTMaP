@@ -1,0 +1,21 @@
+channels:
+- conda-forge
+- bioconda
+
+dependencies:
+- openjdk==21.0.1
+- python==3.12
+- r-base==4.3.2
+- r-rjava==1.0_10
+- bioconductor-biostrings==2.70.1
+- bioconductor-biocparallel==1.36.0
+- bioconductor-Cardinal==3.4.3
+- r-tidyverse==2.0.0
+- r-protViz==0.7.7
+- r-rcdk==3.8.1
+- r-OrgMassSpecR==0.5.3
+- r-rcdklibs==2.8
+- r-scales==1.2.1
+- r-pacman==0.5.1
+- bioconductor-cleaver==1.40.0
+- r-xml==3.98_1.6
