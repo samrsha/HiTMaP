@@ -4,10 +4,9 @@ loading_all_packages()
 message("All pacakge loaded...")
 
 # ------------------------------ Sourcing funcitons from other R script ------------------------------
-# source("scripts/loading_packages.R")
+source("scripts/loading_packages.R")
 source("../R/Canidate_processing.R")
 source("../R/Utilities_Cluster_image.R")
-# source("../R/Utilities_general.R") #Parallel.OS
 
 # ------------------------------ Setting parameter ------------------------------
 datafile = snakemake@params[['datafile']]

@@ -20,8 +20,6 @@ rule reference_database_generation:
         Substitute_AA = config['Substitute_AA'],
         Modifications = config['Modifications'],
         projectfolder = config['projectfolder']
-    conda:
-        "../env/conda_env.yaml"
     script:
         '../scripts/reference_database.R'
         #'../scripts/debugg.R'

@@ -48,8 +48,6 @@ rule image_rendering:
         cluster_color_scale = config['cluster_color_scale'],
         img_brightness = config['img_brightness'],
         pixel_size_um = config['pixel_size_um'],
-        Fastadatabase = config['Fastadatabase'],
-    conda:
-        "../env/conda_env.yaml"    
+        Fastadatabase = config['Fastadatabase'],  
     script:
         '../scripts/image_rendering.R'
