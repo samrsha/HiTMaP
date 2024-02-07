@@ -57,6 +57,9 @@ ibd_file_name=$(basename data/*.ibd .ibd)
 #         echo "Please specify the correct config file name without spaces."
 #     fi
 # done
+echo "Please check if you have all the correct parameters for the config.yaml file under the workflow directory, e.g., Datafile name; Fasta file name. [Press any key to continue.]"
+echo "[Press any key to continue.]"
+read -n 1 -s -r -p ""
 
 # ------------------------------ Ask which module to run and validate ------------------------------
 while true; do
