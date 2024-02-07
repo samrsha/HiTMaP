@@ -1,8 +1,8 @@
+# ------------------------------ Package Loading ------------------------------
 source("scripts/loading_packages.R")
 loading_all_packages()
 
 # ------------------------------ Sourcing funcitons from other R script ------------------------------
-
 source("../R/Utilities_Cluster_image.R")
 source("../R/Utilities_IMS_processing.R")
 source("../R/Utilities_proteomics_annotation.R") #Do_PMF_search()
@@ -67,8 +67,9 @@ if (is.null(Thread)){
 
 # ------------------------------ Select candidate list for IMS annotation  ------------------------------
 if(IMS_analysis){
-    message(paste(Fastadatabase,"was selected as database","\nSpectrum intensity threshold:",percent(threshold),"\nmz tolerance:",ppm,"ppm","Segmentation method:",Segmentation[1],
-                "\nManual segmentation def file:",ifelse(is.null(Virtual_segmentation_rankfile),"None",Virtual_segmentation_rankfile),"\nBypass spectrum generation:",Bypass_generate_spectrum))
+    message("Selecting candidate list for IMS annotation...")
+    message(paste("1.", Fastadatabase,"was selected as database","\n2. Spectrum intensity threshold:",percent(threshold),"\n3. mz tolerance:",ppm,"ppm","Segmentation method:",Segmentation[1],
+                "\n4. Manual segmentation def file:",ifelse(is.null(Virtual_segmentation_rankfile),"None",Virtual_segmentation_rankfile),"\n5. Bypass spectrum generation:",Bypass_generate_spectrum))
   
     #select candidate list for IMS annotation 
     message("\nLoading Reference Database...")

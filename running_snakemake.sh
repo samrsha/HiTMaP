@@ -3,6 +3,18 @@ eval "$(conda shell.bash hook)"
 cd workflow
 conda activate hitmap-snakemake
 
+# this function is created to run the snakemake command but with error handling, detecting the IncompleteFilesException
+run_snakemake() {
+    local snakemake_command="snakemake --cores \"$cores\" $1"
+    eval $snakemake_command
+
+    # Check if Snakemake failed
+    if [ $? -ne 0 ]; then
+        echo "Snakemake encountered an error. Attempting to rerun with --rerun-incomplete..."
+        eval $snakemake_command --rerun-incomplete
+    fi
+}
+
 # ------------------------------ Ask for the number of cores and validate input ------------------------------
 while true; do
     read -p "How many cores would you like to set for Snakemake? " cores
@@ -42,15 +54,15 @@ while true; do
     case $module_choice in
         1)
             echo "Snakemake pipeline starts now..."
-            snakemake --cores "$cores" data/Summary\ folder/protein_index.csv
+            run_snakemake "data/Summary\ folder/protein_index.csv"
             ;;
         2)
             echo "Snakemake pipeline starts now..."
-            snakemake --cores "$cores" data/$ibd_file_name\ ID/Peptide_region_file.csv
+            run_snakemake "data/$ibd_file_name\ ID/Peptide_region_file.csv"
             ;;
         3)
             echo "Snakemake pipeline starts now..."
-            snakemake --cores "$cores" data/Summary\ folder/Protein_feature_list_trimmed.csv
+            run_snakemake "data/Summary\ folder/Protein_feature_list_trimmed.csv"
             ;;
         *)
             echo "Invalid option. Please enter 1, 2, or 3."
@@ -60,6 +72,7 @@ while true; do
     break
 done
 
-# ------------------------------ Copy or link results to the output folder ------------------------------
+# ------------------------------ Copy or link results + config to the output folder ------------------------------
 (cp -rl data/Summary\ folder "data/Output/$folder_name" || cp -r data/Summary\ folder "data/Output/$folder_name") 2> /dev/null
 (cp -rl "data/${ibd_file_name} ID" "data/Output/$folder_name" || cp -r "data/${ibd_file_name} ID" "data/Output/$folder_name") 2> /dev/null
+(cp -l "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml" || cp "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml") 2> /dev/null

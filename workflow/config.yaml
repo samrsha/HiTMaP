@@ -98,19 +98,19 @@ mzAlign_runs : "TopNfeature_mean"
 deconv_peaklist : "New"
 plot_unique_component : TRUE
 
-
-
 #image rendering stuff
 ClusterID_colname : "Protein"
-componentID_colname : "Peptite"
+componentID_colname : "Peptide"
 plot_layout : "line"
 export_Header_table : TRUE
 export_footer_table : TRUE
 attach_summary_cluster : TRUE
-#remove_cluster_from_grid : attach_summary_cluster
 smooth_image : "gaussian"
 Component_plot_coloure : "mono"
 cluster_color_scale : "blackwhite"
 img_brightness : 100
 pixel_size_um : 50
+plot_cluster_image_overwrite : FALSE
+cluster_rds_path : NULL
+plot_cluster_image_maxretry : 2
 

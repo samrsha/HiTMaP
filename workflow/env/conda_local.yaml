@@ -41,3 +41,6 @@ dependencies:
 - r-biocmanager==1.30.22
 - r-units==0.8_5
 - r-sf==1.0_15
+- r-devtools==2.4.5
+- r-colortools==0.1.5
+- r-plotly==4.10.4

@@ -566,12 +566,13 @@ IMS_data_process<-function(datafile,
    setCardinalBPPARAM(BPPARAM)
 
    # resolve the filename, project folder and rotation info
+   message("\nResolving the filename, project folder and rotation info...")
    datafile <- paste0(workdir,"/",datafile)
    workdir <- dirname(datafile)
    datafile <- basename(datafile)
    rotate=Parse_rotation(datafile,rotate)
    datafile_imzML<-datafile
-
+   message(" ---> Resolving Done!")
    # perform the IMS analysis
   for (z in 1:length(datafile)){
     
@@ -585,6 +586,7 @@ IMS_data_process<-function(datafile,
     }
     
     #perform the IMS pre-processing and image segmentation
+    message("\nNow performing the IMS pre-processing and image segmentation...")
          setwd(workdir[z])
          segmentation_res <- Preprocessing_segmentation(datafile=datafile[z],
                                          workdir=workdir[z],
@@ -612,6 +614,7 @@ IMS_data_process<-function(datafile,
    if(PMFsearch){
      if (missing(Protein_feature_list)){
        Protein_feature_list=get("Protein_feature_list", envir = .GlobalEnv)
+       message("\nPreparing PMF search...")
        message("Got Protein_feature_list from global environment.")
      }
      Peptide_Summary_searchlist$Protein<-NULL
@@ -636,6 +639,7 @@ IMS_data_process<-function(datafile,
    
    
    #Start annotation for each found region
+   message("Starting annotation for each found region...")
     setwd(paste0(gsub(".imzML$","",datafile[z])  ," ID"))
     Peptide_Summary_file_regions<-data.frame()
     message(paste("PMFsearch",name))

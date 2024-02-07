@@ -2084,7 +2084,7 @@ Preprocessing_segmentation<-function(datafile,
       dev.off()
     }
   }
-  message("workflow successfully completed")
+  message(" ---> Workflow successfully completed")
   return(list(segmentation_label=x,imdata_org=NULL,imdata=imdata,imdata_ed=imdata_ed))
 }
 

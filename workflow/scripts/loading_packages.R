@@ -17,4 +17,5 @@ loading_all_packages<-function(){
     suppressMessages(suppressWarnings(require(scales)))
     suppressMessages(suppressWarnings(require("pacman")))
     suppressMessages(suppressWarnings(require(dplyr)))
+    message("All pacakge loaded...")
 }

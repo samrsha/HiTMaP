@@ -1,7 +1,6 @@
 # ------------------------------ Package Loading ------------------------------
 source("scripts/loading_packages.R")
 loading_all_packages()
-message("All pacakge loaded...")
 
 # ------------------------------ Sourcing funcitons from other R script ------------------------------
 source("scripts/loading_packages.R")
@@ -75,10 +74,11 @@ Protein_feature_list <- Protein_feature_list_fun(
                                                  mzrange=mzrange)
 
 message("
-                  _______
-                 /      /,
-                /      //
-               /______//
-              (______(/
+                __
+             o-''|\\_____/)
+              \\_/|_)     )
+                 \\  __  /
+                 (_/ (_/  
+                 
 < Reference database generation completed! >
 ")

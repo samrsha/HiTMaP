@@ -38,6 +38,8 @@ img_brightness = snakemake@params[['img_brightness']]
 pixel_size_um = snakemake@params[['pixel_size_um']]
 database = snakemake@params[['Fastadatabase']]
 peptide_ID_filter = snakemake@params[['peptide_ID_filter']]
+plot_cluster_image_overwrite = snakemake@params[['plot_cluster_image_overwrite']]
+plot_cluster_image_maxretry = snakemake@params[['plot_cluster_image_maxretry']]
 remove_cluster_from_grid = attach_summary_cluster
 
 # ------------------------------ Package Loading + Setting working directory ------------------------------
@@ -72,12 +74,21 @@ if(plot_cluster_image_grid){
     message(" ---> Cluster image rendering...")
     setwd(workdir[1])
     
+
+
+    Index_of_protein_sequence <<- fasta.index(database,
+                                            nrec=-1L, 
+                                            skip=0L)
+    
     list_of_protein_sequence <- readAAStringSet(database,
                                             format="fasta",
                                             nrec=-1L, 
                                             skip=0L, 
                                             seek.first.rec=FALSE
                                             )
+    names_pro<-merge(data.frame(desc=names(list_of_protein_sequence),stringsAsFactors = F),Index_of_protein_sequence,by="desc",sort=F)
+    names(list_of_protein_sequence) <- names_pro$recno
+
     # read protein-peptide features result
     
     Protein_feature_list=read.csv(file=paste(workdir[1],"/Summary folder/Protein_peptide_Summary.csv",sep=""),stringsAsFactors = F)
@@ -136,7 +147,6 @@ if(plot_cluster_image_grid){
       saveRDS(imdata,paste0(workdir[1],"/combinedimdata.rds"),compress = T)
       
     }
-    print("cody2")
     # Setup output folder and queue the R calls for cluster image randering
     outputfolder=paste(workdir,"/Summary folder/cluster Ion images/",sep="")
     if (dir.exists(outputfolder)==FALSE){dir.create(outputfolder)}
@@ -178,15 +188,12 @@ if(plot_cluster_image_grid){
                 "pixel_size_um"
                 ),
          file=paste0(workdir,"/cluster_img_grid.RData"))
-    print(colnames(Protein_feature_list_trimmed))
     for (clusterID in unique(Protein_feature_list_trimmed$Protein)){
         cluster_desc<-unique(Protein_feature_list_trimmed$desc[Protein_feature_list_trimmed[[ClusterID_colname]]==clusterID])
         cluster_desc<-gsub(stringr::str_extract(cluster_desc,"OS=.{1,}"),"",cluster_desc)
-        print(ClusterID_colname)
-        print(Protein_feature_list_trimmed[[ClusterID_colname]]) #nihao
 
         n_component<-nrow(unique(Protein_feature_list_trimmed[Protein_feature_list_trimmed[[ClusterID_colname]]==clusterID,c(ClusterID_colname,componentID_colname,"moleculeNames","adduct","Modification")]))
-        print("cody1")
+
         if (n_component>=peptide_ID_filter){
             if ('&'(file.exists(paste0(outputfolder,clusterID,"_cluster_imaging.png")),!plot_cluster_image_overwrite)){
                 message("Cluster image rendering Skipped file exists: No.",clusterID," ",cluster_desc)

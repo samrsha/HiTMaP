@@ -48,6 +48,8 @@ rule image_rendering:
         cluster_color_scale = config['cluster_color_scale'],
         img_brightness = config['img_brightness'],
         pixel_size_um = config['pixel_size_um'],
-        Fastadatabase = config['Fastadatabase'],  
+        Fastadatabase = config['Fastadatabase'], 
+        plot_cluster_image_overwrite = config['plot_cluster_image_overwrite'],
+        plot_cluster_image_maxretry = config['plot_cluster_image_maxretry']
     script:
         '../scripts/image_rendering.R'
