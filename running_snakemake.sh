@@ -5,7 +5,7 @@ conda activate hitmap-snakemake
 
 # this function is created to run the snakemake command but with error handling, detecting the IncompleteFilesException
 run_snakemake() {
-    local snakemake_command="snakemake --cores \"$cores\" $1"
+    local snakemake_command="snakemake --cores $cores $1"
     eval $snakemake_command
 
     # Check if Snakemake failed
@@ -43,6 +43,21 @@ done
 # get the name of the .ibd file and copy/link the corresponding ID folder
 ibd_file_name=$(basename data/*.ibd .ibd)
 
+# # ------------------------------ Ask for config file name ------------------------------
+# while true; do
+#     read -p "Please specify the config file name under the workflow folder (if you are not sure, put config_template): " config_name
+#     if [[ ! $config_name =~ \ |\' ]]; then
+#         if [ -f "$config_name" ]; then
+#             echo "Config file found: $config_name"
+#             break
+#         else
+#             echo "The specified config file does not exist under the workflow folder. Please try again."
+#         fi
+#     else
+#         echo "Please specify the correct config file name without spaces."
+#     fi
+# done
+
 # ------------------------------ Ask which module to run and validate ------------------------------
 while true; do
     echo "Which module would you like to run? (Please type the number)"
@@ -55,6 +70,7 @@ while true; do
         1)
             echo "Snakemake pipeline starts now..."
             run_snakemake "data/Summary\ folder/protein_index.csv"
+            # snakemake --cores $cores "data/Summary\ folder/protein_index.csv"
             ;;
         2)
             echo "Snakemake pipeline starts now..."
@@ -73,6 +89,6 @@ while true; do
 done
 
 # ------------------------------ Copy or link results + config to the output folder ------------------------------
-(cp -rl data/Summary\ folder "data/Output/$folder_name" || cp -r data/Summary\ folder "data/Output/$folder_name") 2> /dev/null
-(cp -rl "data/${ibd_file_name} ID" "data/Output/$folder_name" || cp -r "data/${ibd_file_name} ID" "data/Output/$folder_name") 2> /dev/null
+(cp -rl "data/Summary folder" "data/Output/$folder_name" || cp -r "data/Summary folder" "data/Output/$folder_name") 2> /dev/null
+(cp -rl "data/${ibd_file_name} ID" "data/Output/$folder_name/${ibd_file_name} ID" || cp -r "data/${ibd_file_name} ID" "data/Output/$folder_name") 2> /dev/null
 (cp -l "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml" || cp "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml") 2> /dev/null

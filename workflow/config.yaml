@@ -113,4 +113,3 @@ pixel_size_um : 50
 plot_cluster_image_overwrite : FALSE
 cluster_rds_path : NULL
 plot_cluster_image_maxretry : 2
-

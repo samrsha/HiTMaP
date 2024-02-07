@@ -1,6 +1,8 @@
 message("Image rendering starts now ...")
-# ------------------------------ Sourcing funcitons from other R script ------------------------------
+# ------------------------------ Package Loading ------------------------------
 source("scripts/loading_packages.R")
+loading_all_packages()
+# ------------------------------ Sourcing funcitons from other R script ------------------------------
 source("../R/Utilities_Cluster_image.R")
 source("../R/Utilities_IMS_processing.R")
 source("../R/Utilities_proteomics_annotation.R")
@@ -42,9 +44,7 @@ plot_cluster_image_overwrite = snakemake@params[['plot_cluster_image_overwrite']
 plot_cluster_image_maxretry = snakemake@params[['plot_cluster_image_maxretry']]
 remove_cluster_from_grid = attach_summary_cluster
 
-# ------------------------------ Package Loading + Setting working directory ------------------------------
-loading_all_packages()
-
+# ------------------------------ Setting working directory ------------------------------
 if (is.null(projectfolder)){
     workdir<-base::dirname(datafile[1])
     workdir <- paste(getwd(), "/data", sep = "")

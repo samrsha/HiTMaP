@@ -22,4 +22,3 @@ rule reference_database_generation:
         projectfolder = config['projectfolder']
     script:
         '../scripts/reference_database.R'
-        #'../scripts/debugg.R'
