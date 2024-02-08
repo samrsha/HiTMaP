@@ -1,23 +1,11 @@
 configfile: 'config.yaml'
 import os
 def get_folder_ids(data_folder_path):
-    folder_ids = []
-    # Check if the path exists and is a directory
-    if os.path.exists(data_folder_path) and os.path.isdir(data_folder_path):
-        # Iterate through items in the directory
-        for item in os.listdir(data_folder_path):
-            item_path = os.path.join(data_folder_path, item)
-            # Check if the item is a directory and ends with ' ID'
-            if os.path.isdir(item_path) and item.endswith(" ID"):
-                # Extract the part of the name without ' ID'
-                folder_id = item[:-3]  # Remove last 3 characters (' ID')
-                folder_ids.append(folder_id)
-    else:
-        print(f"The path {data_folder_path} does not exist or is not a directory.")
-    return folder_ids
+    folder_ids = os.path.splitext(config['datafile'])[0]
+    return [folder_ids]
 
 rule image_rendering:
-    input: expand('data/{folder_id} ID/Peptide_region_file.csv', folder_id = get_folder_ids("data"))
+    input: expand('data/{folder_id} ID/Peptide_region_file.csv', folder_id = get_folder_ids())
     output: 'data/Summary folder/Protein_feature_list_trimmed.csv'
     params: 
         datafile = config['datafile'],

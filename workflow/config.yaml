@@ -1,7 +1,7 @@
 datafile: "Bovin_lens.imzML"
+Fastadatabase: "uniprot-bovin.fasta"
 Digestion_site: "trypsin"
 Thread: 1
-Fastadatabase: "uniprot-bovin.fasta"
 mode: ["Proteomics","Metabolomics"]
 mzrange:  [500, 5000]
 adducts: ["M+H"]

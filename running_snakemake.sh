@@ -92,6 +92,12 @@ while true; do
 done
 
 # ------------------------------ Copy or link results + config to the output folder ------------------------------
-(cp -rl "data/Summary folder" "data/Output/$folder_name" || cp -r "data/Summary folder" "data/Output/$folder_name") 2> /dev/null
-(cp -rl "data/${ibd_file_name} ID" "data/Output/$folder_name/${ibd_file_name} ID" || cp -r "data/${ibd_file_name} ID" "data/Output/$folder_name") 2> /dev/null
-(cp -l "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml" || cp "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml") 2> /dev/null
+mkdir data/Output/$folder_name
+cp -r "data/Summary folder" "data/Output/$folder_name/Summary folder"
+cp -r "data/${ibd_file_name} ID" "data/Output/$folder_name/${ibd_file_name} ID"
+cp "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml"
+
+
+# (cp -rl "data/Summary folder" "data/Output/$folder_name/" || cp -r "data/Summary folder" "data/Output/$folder_name/Summary folder") 2> /dev/null
+# (cp -rl "data/${ibd_file_name} ID" "data/Output/$folder_name/${ibd_file_name} ID" || cp -r "data/${ibd_file_name} ID" "data/Output/$folder_name") 2> /dev/null
+# (cp -l "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml" || cp "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml") 2> /dev/null
