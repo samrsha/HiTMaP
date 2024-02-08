@@ -1,6 +1,6 @@
 configfile: 'config.yaml'
 import os
-def get_folder_ids(data_folder_path):
+def get_folder_ids():
     folder_ids = os.path.splitext(config['datafile'])[0]
     return [folder_ids]
 
