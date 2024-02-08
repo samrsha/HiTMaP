@@ -17,17 +17,7 @@ if [ "$using_win" = "yes" ]; then
     if [ "$is_ziped" = "yes" ]; then
         if [ -f "${data_folder}.zip" ]; then
             unzip "${data_folder}.zip"
-            rm -rf "${data_folder}.zip" __MACOSX
-
-            # Check and remove rubish file if it exists
-            if [ -f "${data_folder}.zip:Zone.Identifier" ]; then
-                rm -rf "${data_folder}.zip:Zone.Identifier"
-            fi
-
-            if [ -f "${data_folder}/.DS_Store" ]; then
-                rm -rf "${data_folder}/.DS_Store"
-            fi
-
+            rm -rf "${data_folder}.zip" __MACOSX "${data_folder}.zip:Zone.Identifier" "${data_folder}/.DS_Store"
         else
             echo "The file ${data_folder}.zip does not exist."
             exit 1
