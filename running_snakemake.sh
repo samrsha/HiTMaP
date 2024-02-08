@@ -44,19 +44,6 @@ done
 ibd_file_name=$(basename data/*.ibd .ibd)
 
 # # ------------------------------ Ask for config file name ------------------------------
-# while true; do
-#     read -p "Please specify the config file name under the workflow folder (if you are not sure, put config_template): " config_name
-#     if [[ ! $config_name =~ \ |\' ]]; then
-#         if [ -f "$config_name" ]; then
-#             echo "Config file found: $config_name"
-#             break
-#         else
-#             echo "The specified config file does not exist under the workflow folder. Please try again."
-#         fi
-#     else
-#         echo "Please specify the correct config file name without spaces."
-#     fi
-# done
 echo "Please check if you have all the correct parameters for the config.yaml file under the workflow directory, e.g., Datafile name; Fasta file name. [Press any key to continue.]"
 echo "[Press any key to continue.]"
 read -n 1 -s -r -p ""
@@ -73,7 +60,6 @@ while true; do
         1)
             echo "Snakemake pipeline starts now..."
             run_snakemake "data/Summary\ folder/protein_index.csv"
-            # snakemake --cores $cores "data/Summary\ folder/protein_index.csv"
             ;;
         2)
             echo "Snakemake pipeline starts now..."

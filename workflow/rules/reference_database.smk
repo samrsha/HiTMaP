@@ -1,5 +1,4 @@
 configfile: 'config.yaml'
-
 rule reference_database_generation:
     output: 'data/Summary folder/candidatelist.csv',
             'data/Summary folder/protein_index.csv'

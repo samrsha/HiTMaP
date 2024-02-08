@@ -1,5 +1,4 @@
 configfile: 'config.yaml'
-
 rule peptide_protein_scoring:
     input: 'data/Summary folder/candidatelist.csv',
            'data/Summary folder/protein_index.csv'
