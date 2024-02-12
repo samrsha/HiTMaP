@@ -47,7 +47,7 @@ while true; do
         echo "Please do not include spaces in the folder name."
     fi
 done
-
+echo
 # get the name of the .ibd file and copy/link the corresponding ID folder
 ibd_file_name=$(basename data/*.ibd .ibd)
 
@@ -84,11 +84,10 @@ done
 mkdir -p data/Output/$folder_name
 cp "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml"
 for name in data/*; do
-    if [[ ! $name == *.ibd && ! $name == *.imzML && ! $name == *.fasta ]]; then
+    if [[ ! $name == *.ibd && ! $name == *.imzML && ! $name == *.fasta && $name != "data/Output" ]]; then
         cp -r "$name" "data/Output/$folder_name/"
     fi
 done
-
 
 # (cp -rl "data/Summary folder" "data/Output/$folder_name/" || cp -r "data/Summary folder" "data/Output/$folder_name/Summary folder") 2> /dev/null
 # (cp -rl "data/${ibd_file_name} ID" "data/Output/$folder_name/${ibd_file_name} ID" || cp -r "data/${ibd_file_name} ID" "data/Output/$folder_name") 2> /dev/null
