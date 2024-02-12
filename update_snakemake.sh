@@ -1,9 +1,6 @@
 #!/bin/bash
 set -e
-cp workflow/config.yaml workflow/_config.yaml
-git restore workflow/config.yaml
 git pull origin snakemake-workflow
-mv workflow/_config.yaml workflow/config.yaml
 conda remove -n hitmap-snakemake --all
 
 while true; do
