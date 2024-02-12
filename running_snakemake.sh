@@ -15,6 +15,14 @@ run_snakemake() {
     fi
 }
 
+# ------------------------------ Checking if the user created their config file correctly ------------------------------
+echo "Checking if workflow/config.yaml created correctly..."
+python -W ignore scripts/param_checking.py
+script_exit_status=$?
+if [ $script_exit_status -eq 1 ]; then
+    exit 1
+fi
+
 # ------------------------------ Ask for the number of cores and validate input ------------------------------
 while true; do
     read -p "How many cores would you like to set for Snakemake? " cores
@@ -42,11 +50,6 @@ done
 
 # get the name of the .ibd file and copy/link the corresponding ID folder
 ibd_file_name=$(basename data/*.ibd .ibd)
-
-# # ------------------------------ Ask for config file name ------------------------------
-echo "Please check if you have all the correct parameters for the config.yaml file under the workflow directory, e.g., Datafile name; Fasta file name. [Press any key to continue.]"
-echo "[Press any key to continue.]"
-read -n 1 -s -r -p ""
 
 # ------------------------------ Ask which module to run and validate ------------------------------
 while true; do
@@ -78,10 +81,13 @@ while true; do
 done
 
 # ------------------------------ Copy or link results + config to the output folder ------------------------------
-mkdir data/Output/$folder_name
-cp -r "data/Summary folder" "data/Output/$folder_name/Summary folder"
-cp -r "data/${ibd_file_name} ID" "data/Output/$folder_name/${ibd_file_name} ID"
+mkdir -p data/Output/$folder_name
 cp "config.yaml" "data/Output/$folder_name/config_${folder_name}.yaml"
+for name in data/*; do
+    if [[ ! $name == *.ibd && ! $name == *.imzML && ! $name == *.fasta ]]; then
+        cp -r "$name" "data/Output/$folder_name/"
+    fi
+done
 
 
 # (cp -rl "data/Summary folder" "data/Output/$folder_name/" || cp -r "data/Summary folder" "data/Output/$folder_name/Summary folder") 2> /dev/null

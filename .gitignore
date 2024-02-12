@@ -1,3 +1,4 @@
 .snakemake/
 /workflow/data/
 .DS_Store
+/workflow/config.yaml
