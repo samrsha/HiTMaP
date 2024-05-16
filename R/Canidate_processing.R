@@ -119,7 +119,7 @@ Meta_feature_list_fun<-function(database,
     }
     
     
-    symbol_adducts=bplapply(adducts,convert_peptide_adduct_list,meta_symbol,BPPARAM = BPPARAM,adductslist=adductslist)
+    symbol_adducts=bplapply(adducts,convert_peptide_adduct_list,meta_symbol,BPPARAM = SerialParam(),adductslist=adductslist)
 
     
     symbol_adducts_df=lapply(symbol_adducts,
@@ -471,7 +471,8 @@ Protein_feature_list_fun<-function(workdir=getwd(),
     
     tempdf_var<-tempdf
     reserve_entry<-rep(FALSE,nrow(tempdf_var))
-    #for (fixmod in mod.df$record_id){ #should access the modificaitons using index insdead of using name of each element. cody
+    # for (fixmod in mod.df$record_id){
+    # should access the modificaitons using index insdead of using name of each element.
     for (fixmod in 1:length(mod.df$record_id)){
       mods<-ifelse(peptide_symbol_var$multiplier[[fixmod]]>=1,mod.df$code_name[mod.df$record_id==fixmod],"")
       tempdf_var$Modification<-paste(tempdf_var$Modification,mods)
@@ -507,12 +508,10 @@ Protein_feature_list_fun<-function(workdir=getwd(),
     peptide_symbol_var<-convert_peptide_fixmod(mod.df,peptide_symbol,peptide_info=tempdf,BPPARAM = BPPARAM)#contain 2 lists, peptide_symbol list  contain the updated atom composition for each peptide, multiplier list contain the occurrence of each modifier in all peptide.
     tempdf_var<-tempdf
     reserve_entry<-rep(FALSE,nrow(tempdf_var))
-    
-    # then for each modification, we want update the MODIFICATION column and also recalculate the mz ratio according to the modification
-    #for (fixmod in mod.df$record_id){
-    for (fixmod in 1:length(mod.df$record_id)){ #should access the modificaitons using index insdead of using name of each element. cody
-      current_mod_id = mod.df$record_id[[fixmod]]
-      mods<-ifelse(peptide_symbol_var$multiplier[[fixmod]]>=1,mod.df$code_name[mod.df$record_id==current_mod_id],"")
+    # for (fixmod in mod.df$record_id){
+    # should access the modificaitons using index insdead of using name of each element.
+    for (fixmod in 1:length(mod.df$record_id)){
+      mods<-ifelse(peptide_symbol_var$multiplier[[fixmod]]>=1,mod.df$code_name[mod.df$record_id==fixmod],"")
       tempdf_var$Modification<-paste(tempdf_var$Modification,mods)
       #tempdf_var$pepmz <-tempdf_var$pepmz + peptide_symbol_var$multiplier[[fixmod]]*as.numeric(mod.df$mono_mass[mod.df$record_id==fixmod]) # re-caculating the mass, this will give a warning message realted to unequal length of two list in operation.
       tempdf_var$pepmz <-tempdf_var$pepmz + peptide_symbol_var$multiplier[[fixmod]]*as.numeric(mod.df$mono_mass[mod.df$record_id==current_mod_id][[1]]) # might make more sense to do this cody
@@ -532,9 +531,8 @@ Protein_feature_list_fun<-function(workdir=getwd(),
   message(paste(" ---> Default peptide formula:",paste(adducts,collapse = " "), "generating Done\n"))
   # ******************************** 	Modifying peptide formular and M/Z with specified adducts  ******************************** 
   message(paste("Generating peptide formula with adducts:",paste(adducts,collapse = " ")))
-  # Using convert_peptide_adduct_list function update the peptide symbol by merging the adducts’ atom compostion. The adducts’ atom composition are extracted from calling Build_adduct_list(). 
-  peptides_symbol_adducts=bplapply(adducts,convert_peptide_adduct_list,peptide_symbol,BPPARAM = BPPARAM,adductslist=adductslist)
-  # recalculating the peptide m/z ratio using adducts'
+  peptides_symbol_adducts=bplapply(adducts,convert_peptide_adduct_list,peptide_symbol,BPPARAM = SerialParam(),adductslist=adductslist)
+  
   for (i in 1:length(adducts)){
     adductmass <- as.numeric(as.character(adductslist[adductslist$Name == adducts[i], "Mass"]))
     charge=as.numeric(as.character(adductslist$Charge[adductslist$Name == adducts[i]]))
@@ -554,7 +552,7 @@ Protein_feature_list_fun<-function(workdir=getwd(),
   # *******Adducts option*******
   if (length(Decoy_adducts)>0 && Decoy_search && ("adducts" %in% Decoy_mode)){
     message(paste("Generating peptide formula with Decoy adducts:",paste(Decoy_adducts,collapse = " ")))
-    peptides_symbol_adducts=bplapply(Decoy_adducts,convert_peptide_adduct_list,peptide_symbol,BPPARAM = BPPARAM,adductslist=adductslist)
+    peptides_symbol_adducts=bplapply(Decoy_adducts,convert_peptide_adduct_list,peptide_symbol,BPPARAM = SerialParam(),adductslist=adductslist)
   for (i in 1:length(Decoy_adducts)){
     adductmass <- as.numeric(as.character(adductslist[adductslist$Name == Decoy_adducts[i], "Mass"]))
     charge=as.numeric(as.character(adductslist$Charge[adductslist$Name==Decoy_adducts[i]]))
@@ -1110,7 +1108,7 @@ Protein_feature_list_table_import<-function(workdir=getwd(),
     }
     
     message(paste("Generating peptide formula with adducts:",paste(adducts,collapse = " ")))
-    peptides_symbol_adducts=bplapply(adducts,convert_peptide_adduct_list,peptide_symbol,BPPARAM = BPPARAM,adductslist=adductslist)
+    peptides_symbol_adducts=bplapply(adducts,convert_peptide_adduct_list,peptide_symbol,BPPARAM = SerialParam(),adductslist=adductslist)
     
     for (i in 1:length(adducts)){
       adductmass <- as.numeric(as.character(adductslist[adductslist$Name == adducts[i], "Mass"]))
@@ -1135,7 +1133,7 @@ Protein_feature_list_table_import<-function(workdir=getwd(),
     
     if (length(Decoy_adducts)>0 && Decoy_search && ("adducts" %in% Decoy_mode)){
       message(paste("Generating peptide formula with Decoy adducts:",paste(Decoy_adducts,collapse = " ")))
-      peptides_symbol_adducts=bplapply(Decoy_adducts,convert_peptide_adduct_list,peptide_symbol,BPPARAM = BPPARAM,adductslist=adductslist)
+      peptides_symbol_adducts=bplapply(Decoy_adducts,convert_peptide_adduct_list,peptide_symbol,BPPARAM = SerialParam(),adductslist=adductslist)
       for (i in 1:length(Decoy_adducts)){
         adductmass <- as.numeric(as.character(adductslist[adductslist$Name == Decoy_adducts[i], "Mass"]))
         charge=as.numeric(as.character(adductslist$Charge[adductslist$Name==Decoy_adducts[i]]))
@@ -1667,23 +1665,16 @@ convert_peptide_fixmod<-function(mod.df,peptide_symbol,peptide_info,BPPARAM=BPPA
   multiplier<-lapply(mod.df.list,multiplier_for_mod,pep_sequence=pep_sequence,peptide_info=peptide_info,BPPARAM=BPPARAM) # lists of all confirmed modifier, each element represent the occurrence of the modifier for each peptide
   names(multiplier)<-as.character(mod.df$record_id)
 
-  #for each user specified modifier
-  for (fixmod in 1:length(mod.df$record_id)){ # should also use index to access the modification type, not using name. Cody
-    peptide_symbol[which(multiplier[[fixmod]]>=1)]#not sure this will do anything meaningfully cody
+  # for (fixmod in mod.df$record_id){
+  for (fixmod in 1:length(mod.df$record_id)){ # should also use index to access the modification type, not using name. And also removed all the as.character below for each fixmod
 
-    #for each peptide that contains the target modifier, change the atom combination of that peptide according to the number of occurence of that modifier in the peptide
     peptide_symbol[which(multiplier[[fixmod]]>=1)]<-bplapply(1:length(peptide_symbol[which(multiplier[[fixmod]]>=1)]),function(x,symbol,addelements,merge_atoms,multiplier_list){
-      # symbol is the atom combinations for all the peptide where each peptide contains the modifier
-      # addelements is the current modifier's atom combination
-      # multiplier_list is current multiplier but dropped all the 0 entries
-
-      
       if (multiplier_list[x]!=0){
         return(merge_atoms(atoms = symbol[[x]],addelements = addelements,check_merge=F,mode="add",multiplier=c(1,multiplier_list[x])))
       }else{
         return(symbol[[x]])#don't think this will get exectued because multiplier_list is a list of all non-zero entries, so multiplier_list[x]!=0 alwasy true
         }
-      },symbol=peptide_symbol[which(multiplier[[fixmod]]>=1)],merge_atoms=merge_atoms,addelements=formula_mod[[fixmod]], multiplier_list = multiplier[[fixmod]][which(multiplier[[fixmod]]>=1)],BPPARAM = BPPARAM)
+      },symbol=peptide_symbol[which(multiplier[[fixmod]]>=1)],merge_atoms=merge_atoms,addelements=formula_mod[[fixmod]], multiplier_list = multiplier[[fixmod]][which(multiplier[[fixmod]]>=1)],BPPARAM = SerialParam())
   }
   return(list(peptide_symbol=peptide_symbol,multiplier=multiplier))
 }

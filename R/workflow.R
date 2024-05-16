@@ -157,8 +157,7 @@ imaging_identification<-function(
 
 # Set the parallel processing parameter, multicore-fork method has been temporarily disabled due to the reduced performance in docker enviornment
   if (is.null(Thread)){
-    # setting up number of thread/worker if Thread is not given
-    parallel=try(detectCores()/2) # detecting how many CPU this host (e.g. your laptop) and will use half of it for running
+    parallel=try(future::availableCores()/2)
     if (parallel<1 | is.null(parallel)){parallel=1}
     BPPARAM=HiTMaP:::Parallel.OS(parallel)
     setCardinalBPPARAM(BPPARAM = BPPARAM)
@@ -169,9 +168,7 @@ imaging_identification<-function(
     setCardinalBPPARAM(BPPARAM = BPPARAM)
   }
 
-#Starting messages
-
-  message(paste(try(detectCores()), "Cores detected,",parallel, "threads will be used for computing"))
+  message(paste(try(future::availableCores()), "Cores detected,",parallel, "threads will be used for computing"))
 
   message(paste(length(datafile), "files were selected and will be used for Searching"))
 
@@ -650,12 +647,15 @@ IMS_data_process<-function(datafile,
       
     imdata_sb <- imdata[,unlist(segmentation_label[[SPECTRUM_batch]])]
     imdata_ed <- imdata_sb
-    if(is.null(preprocess$peakAlign$level)) preprocess$peakAlign$level<-"local"
+    
+    if (!is.null(preprocess$peakAlign)){
+    if (preprocess$peakAlign$method!="Disable") {
+    if (is.null(preprocess$peakAlign$level)) preprocess$peakAlign$level<-"local"
     if (preprocess$peakAlign$level=="local"){
       
       if (preprocess$peakAlign$tolerance==0 ) {
         message("preprocess$peakAlign$tolerance set as zero, step bypassed")
-      }else if ('&'(!is.null(preprocess$peakAlign$tolerance),!is.null(preprocess$peakAlign$tolerance))){
+      }else if ('&'(!is.null(preprocess$peakAlign$tolerance),!is.null(preprocess$peakAlign$units))){
         message("preprocess$peakAlign$tolerance set as ", preprocess$peakAlign$tolerance)
         imdata_ed<- imdata_ed %>% peakAlign(tolerance=preprocess$peakAlign$tolerance, units=preprocess$peakAlign$units)
       }else {
@@ -664,7 +664,8 @@ IMS_data_process<-function(datafile,
       }
       imdata_ed <- imdata_ed %>% process()
     }
-    
+    }
+    }
     imdata_sb <- imdata_ed 
     
    #generate spectrum for each found region
