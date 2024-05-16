@@ -40,7 +40,7 @@ setwd("data/") # this is a bit hardcoding cody
 # ------------------------------ Setting up Biocparallel param ------------------------------
 if (is.null(Thread)){
   # setting up number of thread/worker if Thread is not given
-  parallel=try(detectCores()/2) # detecting how many CPU this host (e.g. your laptop) and will use half of it for running
+  parallel=try(future::availableCores()/2) # detecting how many CPU this host (e.g. your laptop) and will use half of it for running
   if (parallel<1 | is.null(parallel)){parallel=1}
   BPPARAM=HiTMaP:::Parallel.OS(parallel) 
   setCardinalBPPARAM(BPPARAM = BPPARAM)
@@ -52,7 +52,7 @@ if (is.null(Thread)){
 }
 
 message("Parallel Worker Set up Finshed: ")
-message(paste("    -",try(detectCores()), "Cores detected."))
+message(paste("    -",try(future::availableCores()), "Cores detected."))
 message(paste("    -",parallel, "threads will be used for computing.\n"))
 
 message("File Selection Finshed: ")
