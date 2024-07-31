@@ -1,0 +1,13 @@
+include: "rules/reference_database.smk"
+include: "rules/peptide_protein_scoring.smk"
+include: "rules/image_rendering.smk"
+
+# /
+# |- workflow/
+#     |- data/
+#         |- data.imzML
+#     |- rules/
+#         |- rule1.smk
+#     |- scripts/
+#         |- script.R
+#     |- Snakefile

@@ -360,7 +360,7 @@ SCORE_PMF<-function(formula,peaklist,isotopes=NULL,threshold=1,charge=1,ppm=5,pr
     for (i in 1:(length(pattern_ppm)-1)){
 
       pattern_ppm_delta[i]=(pattern_ppm[i+1]-pattern_ppm[i])/pattern_ppm[i]
-
+      
       if (pattern_ppm_delta[i]>(ppm/1000000)){
         filtered_pattern<-rbind(filtered_pattern,pattern[i+1,])
       } else {
@@ -397,7 +397,7 @@ SCORE_PMF<-function(formula,peaklist,isotopes=NULL,threshold=1,charge=1,ppm=5,pr
     for (i in 1:(length(pattern_ppm)-1)){
 
       pattern_ppm_delta[i]=(pattern_ppm[i+1]-pattern_ppm[i])/pattern_ppm[i]
-
+      
       if (length(pattern_ppm_delta[i] > (ppm/1e+06))==1 && pattern_ppm_delta[i]>(ppm/1000000)){
         filtered_pattern<-rbind(filtered_pattern,pattern[i+1,])
       } else {

@@ -1,3 +1,6 @@
+.snakemake/
+/workflow/data/
+/workflow/config.yaml
 .Rproj.user
 .Rhistory
 .RData

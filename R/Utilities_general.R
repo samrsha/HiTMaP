@@ -267,7 +267,17 @@ percent <- function(x, digits = 2, format = "f", ...) {
   paste0(formatC(100 * x, format = format, digits = digits, ...), "%")
 }
 
-
+#' Parallel.OS
+#'
+#' This function sets up the parallel processing environment using BiocParallel package. The user input here is the number of worker/CPU (Thread) that will be used for parallel processing. 
+#' @param the number of thread/woker that will be used
+#' @return BPPARAM the BiocParallel object
+#'
+#' @examples
+#' Parallel.OS(6)
+#'
+#' @export
+# 
 Parallel.OS<-function(Thread=1,bpprogressbar_t=TRUE,override_type=NULL,bpexportglobals=F,bpforceGC=F){
   library(BiocParallel)
   if(Thread!=1){

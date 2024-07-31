@@ -150,21 +150,22 @@ imaging_identification<-function(
   }else{ workdir<-projectfolder }
 
   datafile <- basename(datafile)
-  datafile <- gsub(".imzML$", "", datafile)
+  datafile <- gsub(".imzML$", "", datafile) # Get the image file name, e.g. /data/bolvin.imzML --> /data/bolvin
   datafile_imzML <- paste0(datafile,".imzML")
   
   setwd(paste0(workdir[1],"/"))
 
 # Set the parallel processing parameter, multicore-fork method has been temporarily disabled due to the reduced performance in docker enviornment
   if (is.null(Thread)){
-  parallel=try(future::availableCores()/2)
-  if (parallel<1 | is.null(parallel)){parallel=1}
-  BPPARAM=HiTMaP:::Parallel.OS(parallel)
-  setCardinalBPPARAM(BPPARAM = BPPARAM)
+    parallel=try(future::availableCores()/2)
+    if (parallel<1 | is.null(parallel)){parallel=1}
+    BPPARAM=HiTMaP:::Parallel.OS(parallel)
+    setCardinalBPPARAM(BPPARAM = BPPARAM)
   }else{
-  parallel=Thread
-  BPPARAM=HiTMaP:::Parallel.OS(parallel)
-  setCardinalBPPARAM(BPPARAM = BPPARAM)
+    #if Thread is given, then will use the given Thread for BiocParallel running
+    parallel=Thread 
+    BPPARAM=HiTMaP:::Parallel.OS(parallel)
+    setCardinalBPPARAM(BPPARAM = BPPARAM)
   }
 
   message(paste(try(future::availableCores()), "Cores detected,",parallel, "threads will be used for computing"))
@@ -562,12 +563,13 @@ IMS_data_process<-function(datafile,
    setCardinalBPPARAM(BPPARAM)
 
    # resolve the filename, project folder and rotation info
+   message("\nResolving the filename, project folder and rotation info...")
    datafile <- paste0(workdir,"/",datafile)
    workdir <- dirname(datafile)
    datafile <- basename(datafile)
    rotate=Parse_rotation(datafile,rotate)
    datafile_imzML<-datafile
-
+   message(" ---> Resolving Done!")
    # perform the IMS analysis
   for (z in 1:length(datafile)){
     
@@ -581,6 +583,7 @@ IMS_data_process<-function(datafile,
     }
     
     #perform the IMS pre-processing and image segmentation
+    message("\nNow performing the IMS pre-processing and image segmentation...")
          setwd(workdir[z])
          segmentation_res <- Preprocessing_segmentation(datafile=datafile[z],
                                          workdir=workdir[z],
@@ -608,6 +611,7 @@ IMS_data_process<-function(datafile,
    if(PMFsearch){
      if (missing(Protein_feature_list)){
        Protein_feature_list=get("Protein_feature_list", envir = .GlobalEnv)
+       message("\nPreparing PMF search...")
        message("Got Protein_feature_list from global environment.")
      }
      Peptide_Summary_searchlist$Protein<-NULL
@@ -632,6 +636,7 @@ IMS_data_process<-function(datafile,
    
    
    #Start annotation for each found region
+   message("Starting annotation for each found region...")
     setwd(paste0(gsub(".imzML$","",datafile[z])  ," ID"))
     Peptide_Summary_file_regions<-data.frame()
     message(paste("PMFsearch",name))
@@ -639,15 +644,6 @@ IMS_data_process<-function(datafile,
     for (SPECTRUM_batch in names(segmentation_label)){
       message(paste("IMS_analysis",name,"region",SPECTRUM_batch))
         if (dir.exists(paste0(workdir[z],"/",datafile[z] ," ID/",SPECTRUM_batch,"/"))==FALSE){dir.create(paste0(workdir[z],"/",datafile[z] ," ID/",SPECTRUM_batch,"/"))}
-    # if (!is.null(preprocess)){
-    #   if ('|'(imdata@metadata[["ibd binary type"]]!="processed",preprocess$force_preprocess)){
-    #   message(paste("Using preprocessed .rda data:",datafile[z]))
-    #   imdata<-imdata_ed
-    #   } else if (imdata@metadata[["ibd binary type"]]=="processed"){
-    #   message(paste("Using preprocessed .imzml data:",datafile[z]))
-    #   imdata<-imdata_org
-    #   }
-    # }
       
     imdata_sb <- imdata[,unlist(segmentation_label[[SPECTRUM_batch]])]
     imdata_ed <- imdata_sb
@@ -676,11 +672,9 @@ IMS_data_process<-function(datafile,
     peaklist<-spectrum_file_table
     colnames(peaklist)<-c("m.z","intensities")
     savename=paste(name,SPECTRUM_batch)
-   
     
     peaklist<-peaklist[peaklist$intensities>0,]
     write.csv(peaklist,paste0(workdir[z],"/",datafile[z] ," ID/",SPECTRUM_batch,"/Spectrum.csv"),row.names = F)
-    
    #generate filtered processed peaklist to next PMF step
     deconv_peaklist<-HiTMaP:::isopattern_ppm_filter_peaklist(peaklist,ppm=ppm,threshold=0)
     deconv_peaklist_thres_id<-deconv_peaklist$intensities>=max(deconv_peaklist$intensities)*threshold
@@ -709,7 +703,6 @@ IMS_data_process<-function(datafile,
     Peptide_plot_list=Peptide_plot_list[(!is.na(Peptide_plot_list$Intensity)),]
     message(paste("1st run returns",nrow(Peptide_plot_list), "peptide candidates"))
     write.csv(Peptide_plot_list,paste0(workdir[z],"/",datafile[z] ," ID/",SPECTRUM_batch,"/Peptide_1st_ID.csv"),row.names = F)
-    
     
     #perform peptide-protein scoring and FDR cut off
     if (nrow(Peptide_plot_list)==0){
